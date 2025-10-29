@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "generate-manifest": "node ./scripts/generate-manifest.js",
     "generate-posters": "node ./scripts/generate-posters.js",
-    "generate-posters:update-manifest": "node ./scripts/generate-posters.js --update-manifest"
+    "generate-posters:update-manifest": "node ./scripts/generate-posters.js --update-manifest",
+    "add-font": "node ./scripts/add-font.js"
   },
   "dependencies": {
     "vue": "^3.5.18",

@@ -6,6 +6,9 @@
           <img src="/img/graph/logo_bw.png" alt="Warsaw Studios logo" class="logo-img" />
         </div>
       </div>
+      <div class="brand-text">
+        <slot name="brand"> </slot>
+      </div>
       <nav class="main-nav">
         <router-link to="/" class="nav-link">Home</router-link>
         <router-link :to="{ path: '/', hash: '#works' }" class="nav-link">Portfolio</router-link>
@@ -21,7 +24,7 @@
 
 <style scoped>
 .site-header {
-  background: var(--color-header-bg); /* header color controlled from main.css */
+  background: var(--section-navbar-bg, var(--color-header-bg)); /* header color controlled from main.css */
   color: var(--color-text);
   border-bottom: 1px solid rgba(255,255,255,0.04);
 }

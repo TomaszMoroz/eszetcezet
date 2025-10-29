@@ -12,6 +12,23 @@
   /* Typography */
   --font-family-base: 'Bison', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
   --font-size-base: 16px;
+  /* New typography variables applied by ThemeEditor (if present) */
+  --font-base: var(--font-family-base);
+  --font-base-size: var(--font-size-base);
+  --font-base-weight: 400;
+  --color-base-text: var(--color-text);
+  --font-heading: var(--font-family-base);
+  --font-heading-size: 28px;
+  --font-heading-weight: 700;
+  --color-heading-text: var(--color-text);
+  --font-caption: var(--font-family-base);
+  --font-caption-size: 12px;
+  --font-caption-weight: 400;
+  --color-caption-text: var(--color-text);
+  --font-nav: var(--font-family-base);
+  --font-nav-size: 15px;
+  --font-nav-weight: 600;
+  --color-nav-text: var(--color-text);
 }
 
 /* Font faces from public/fonts/bison */
@@ -51,15 +68,61 @@ html, body {
 body {
   background: var(--color-bg);
   color: var(--color-text);
-  font-family: var(--font-family-base);
-  font-size: var(--font-size-base);
+  font-family: var(--font-base, var(--font-family-base));
+  font-size: var(--font-base-size, var(--font-size-base));
+  font-weight: var(--font-base-weight, 400);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Typography mapping for headings, captions and nav using variables set by ThemeEditor */
+h1, h2, h3, h4 {
+  font-family: var(--font-heading, var(--font-family-base));
+  font-size: var(--font-heading-size, 28px);
+  font-weight: var(--font-heading-weight, 700);
+  color: var(--color-heading-text, var(--color-text));
+}
+
+small, .caption {
+  font-family: var(--font-caption, var(--font-family-base));
+  font-size: var(--font-caption-size, 12px);
+  font-weight: var(--font-caption-weight, 400);
+  color: var(--color-caption-text, var(--color-text));
+}
+
+.site-nav, nav, .btn {
+  font-family: var(--font-nav, var(--font-family-base));
+  font-size: var(--font-nav-size, 15px);
+  font-weight: var(--font-nav-weight, 600);
+  color: var(--color-nav-text, var(--color-text));
 }
 
 /* Utility: full-bleed section backgrounds should use these variables */
 .section--dark { background: var(--color-section-dark); }
 .section--light { background: var(--color-section-light); }
+
+/* Section-level overrides from Admin -> SectionEditor (variables set: --section-<key>-bg, --section-<key>-font) */
+.site-header {
+  background: var(--section-navbar-bg, var(--color-header-bg));
+  font-family: var(--section-navbar-font, var(--font-nav));
+}
+.hero {
+  background: var(--section-hero-bg, var(--color-section-dark));
+  font-family: var(--section-hero-font, var(--font-heading));
+}
+.works-section, .gallery-container {
+  background: var(--section-gallery-bg, var(--color-section-dark));
+  font-family: var(--section-gallery-font, var(--font-base));
+}
+.text-section {
+  background: var(--section-info-bg, var(--color-section-light));
+  font-family: var(--section-info-font, var(--font-base));
+  color: var(--section-info-text-color, var(--color-text-dark));
+}
+.site-footer {
+  background: var(--section-footer-bg, var(--color-section-light));
+  font-family: var(--section-footer-font, var(--font-base));
+}
 
 /* Expose a simple helper for centered inner content */
 .site-inner { max-width: 1280px; margin: 0 auto; padding: 2rem 1.5rem; }

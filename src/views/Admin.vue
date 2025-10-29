@@ -156,6 +156,10 @@
       <h2>Motyw strony</h2>
       <ThemeEditor />
     </section>
+    <section>
+      <h2>Edytor sekcji</h2>
+      <SectionEditor />
+    </section>
   </div>
 </template>
 
@@ -163,6 +167,7 @@
 import { ref, onMounted, computed } from 'vue';
 import draggable from 'vuedraggable';
 import ThemeEditor from '../components/ThemeEditor.vue';
+import SectionEditor from '../components/SectionEditor.vue';
 
 const items = ref([
   { id: 1, type: 'photo', title: 'Salon', thumb: '/img/1.jpg' },

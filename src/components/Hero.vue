@@ -41,7 +41,7 @@ const backgroundStyle = computed(() => ({
   will-change: transform;
 }
 .hero {
-  background-color: var(--color-section-dark); /* fallback using theme variable */
+  background-color: var(--section-hero-bg, var(--color-section-dark)); /* fallback using theme variable */
 }
 .hero-overlay {
   position: absolute;
