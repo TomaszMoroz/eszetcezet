@@ -124,29 +124,22 @@ const SHOW_VIDEOS_KEY = 'gallery-show-videos'
 const GALLERY_SEQUENCE_KEY_PHOTOS = 'gallery-sequence:photos'
 const GALLERY_SEQUENCE_KEY_VIDEOS = 'gallery-sequence:videos'
 
-// `galleryData` is intentionally empty here — we only populate gallery items
-// from a manifest (`/img/manifest.json`) or from explicit sequences/metadata
-// saved to localStorage. This avoids any mock/sample data baked into the app.
-const galleryData = ref([])
+// Caching photos and videos separately
+const allPhotos = ref([])
+const allVideos = ref([])
+const galleryData = ref([]) // points to current mode's list
 
 // Computed properties
 const availableTags = computed(() => {
   const tags = new Set()
-  galleryData.value
-    .filter(item => {
-      if (!showVideos.value && item.type === 'video') return false
-      return item.type === (currentMode.value === 'photos' ? 'photo' : 'video')
-    })
-    .forEach(item => item.tags.forEach(tag => tags.add(tag)))
+  galleryData.value.forEach(item => item.tags.forEach(tag => tags.add(tag)))
   return Array.from(tags)
 })
 
 const filteredItems = computed(() => {
   return galleryData.value.filter(item => {
-    if (!showVideos.value && item.type === 'video') return false
-    const typeMatch = item.type === (currentMode.value === 'photos' ? 'photo' : 'video')
     const tagMatch = !selectedTag.value || item.tags.includes(selectedTag.value)
-    return typeMatch && tagMatch
+    return tagMatch
   })
 })
 
@@ -390,30 +383,29 @@ const applyMetadata = (meta) => {
   })
 }
 
-// Load gallery images from /img/manifest.json and replace galleryData with those entries.
+// Load gallery images from /img/manifest.json and cache photos/videos separately
+let lastManifestTimestamp = null
 const loadGalleryFromManifest = async () => {
   try {
-    // Respect Vite's base path so the app works when deployed under a subpath.
     const base = (import.meta.env.BASE_URL ?? '/')
     const manifestUrl = base.replace(/\/?$/, '/') + 'img/manifest.json'
     const res = await fetch(manifestUrl)
     if (!res.ok) return
     const data = await res.json()
     if (!data || !Array.isArray(data.files) || !data.files.length) return
-    // build gallery items from manifest but only from /img/dashboard folder
-    const items = []
+    if (lastManifestTimestamp === data.timestamp) return // no change
+    lastManifestTimestamp = data.timestamp
+    const photos = []
+    const videos = []
     data.files.forEach((f, idx) => {
-      // images from dashboard (accept either leading slash or not)
       if ((f.includes('/img/dashboard/') || f.includes('img/dashboard/')) && /\.(jpe?g|png|webp|avif|gif|heic|bmp)$/i.test(f)) {
         const name = f.split('/').pop()
-        items.push({ id: 10000 + items.length, type: 'photo', title: name, src: f, ratio: 'landscape', tags: [], focalX: 50, focalY: 50 })
+        photos.push({ id: 10000 + photos.length, type: 'photo', title: name, src: f, ratio: 'landscape', tags: [], focalX: 50, focalY: 50 })
       }
-      // video files in /videos/
       if ((f.startsWith('/videos/') || f.includes('/videos/') || f.includes('videos/')) && /\.(mp4|webm|m4v|mov|ogg)$/i.test(f)) {
         const name = f.split('/').pop()
-        const it = { id: 20000 + items.length, type: 'video', title: name, src: f, thumbnail: '', ratio: 'landscape', tags: [], focalX: 50, focalY: 50 }
-        items.push(it)
-        // try to auto-detect a generated poster in /img/posters/{basename}.{webp|jpg}
+        const it = { id: 20000 + videos.length, type: 'video', title: name, src: f, thumbnail: '', ratio: 'landscape', tags: [], focalX: 50, focalY: 50 }
+        videos.push(it)
         ;(async () => {
           try {
             await probeForPoster(it)
@@ -421,9 +413,10 @@ const loadGalleryFromManifest = async () => {
         })()
       }
     })
-    if (items.length) {
-      galleryData.value = items
-    }
+    allPhotos.value = photos
+    allVideos.value = videos
+    // set galleryData to current mode
+    galleryData.value = currentMode.value === 'photos' ? allPhotos.value : allVideos.value
   } catch (e) {
     // ignore
   }
@@ -545,33 +538,22 @@ onMounted(() => {
   })
 })
 
-// Watch mode changes and re-apply mode-specific sequence
-const loadSequenceForMode = async (mode) => {
+// Watch mode changes and just switch reference to cached list
+watch(currentMode, (n) => {
+  resetFiltersOnModeChange()
+  if (n === 'photos') {
+    galleryData.value = allPhotos.value
+  } else {
+    galleryData.value = allVideos.value
+  }
+  // apply sequence for current mode if present
   try {
-    const key = (mode === 'photos') ? GALLERY_SEQUENCE_KEY_PHOTOS : GALLERY_SEQUENCE_KEY_VIDEOS
+    const key = (n === 'photos') ? GALLERY_SEQUENCE_KEY_PHOTOS : GALLERY_SEQUENCE_KEY_VIDEOS
     const seq = JSON.parse(localStorage.getItem(key) || 'null')
     if (seq && Array.isArray(seq) && seq.length) {
       applyGallerySequence(seq, true)
-    } else {
-      await loadGalleryFromManifest()
-      // If we're in video mode and no sequence was defined, create a default sequence
-      // from the manifest-discovered video files so they appear immediately.
-      if (mode === 'videos') {
-        try {
-          const vids = galleryData.value.filter(it => it.type === 'video').map(it => it.src)
-          if (vids && vids.length) {
-            localStorage.setItem(GALLERY_SEQUENCE_KEY_VIDEOS, JSON.stringify(vids))
-            applyGallerySequence(vids, true)
-          }
-        } catch (e) {}
-      }
     }
   } catch (e) {}
-}
-
-watch(currentMode, (n) => {
-  resetFiltersOnModeChange()
-  loadSequenceForMode(n)
 })
 </script>
 
