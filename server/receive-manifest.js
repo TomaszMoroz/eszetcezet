@@ -22,6 +22,11 @@ app.post('/api/manifest', (req, res) => {
   const payload = req.body
   if (!payload) return res.status(400).json({ error: 'Missing JSON body' })
 
+  // Ensure 'files' is always present and matches 'fileOrder' if available
+  if (Array.isArray(payload.fileOrder)) {
+    payload.files = [...payload.fileOrder]
+  }
+
   // Write to public/img/manifest.json (relative to repo root)
   const outDir = path.join(__dirname, '..', 'public', 'img')
   const outPath = path.join(outDir, 'manifest.json')
