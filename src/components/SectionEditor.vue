@@ -8,9 +8,15 @@
     </label>
 
     <div class="controls">
+
       <label>Kolor tła:
         <input type="color" v-model="cfg.bg" @input="applyBg" />
         <input class="hex" type="text" v-model="cfg.bg" @change="applyBg" />
+      </label>
+
+      <label>Kolor tekstu:
+        <input type="color" v-model="cfg.textColor" @input="applyTextColor" />
+        <input class="hex" type="text" v-model="cfg.textColor" @change="applyTextColor" />
       </label>
 
       <label>Font sekcji:
@@ -89,13 +95,19 @@ const data = ref({})
 
 function ensureDefaultsFor(key) {
   if (!data.value[key]) {
-    data.value[key] = { bg: '', font: systemFonts[0].family, blocks: [], applyToMedia: false }
+    data.value[key] = { bg: '', textColor: '#222222', font: systemFonts[0].family, blocks: [], applyToMedia: false }
   } else {
     if (!Array.isArray(data.value[key].blocks)) data.value[key].blocks = []
     if (!data.value[key].font) data.value[key].font = systemFonts[0].family
     if (!data.value[key].bg) data.value[key].bg = ''
+    if (!data.value[key].textColor) data.value[key].textColor = '#222222'
     if (data.value[key].applyToMedia == null) data.value[key].applyToMedia = false
   }
+}
+function applyTextColor() {
+  const k = selected.value
+  const c = (data.value[k] && data.value[k].textColor) || ''
+  try { document.documentElement.style.setProperty(`--section-${k}-text-color`, c) } catch (e) {}
 }
 
 const cfg = computed(() => {
@@ -199,7 +211,7 @@ function moveDown(idx) {
 function save() {
   try {
     localStorage.setItem(SECTIONS_KEY, JSON.stringify(data.value))
-    applyBg(); applyFont()
+    applyBg(); applyFont(); applyTextColor();
     // also set inline styles immediately for better visual feedback
     try {
       const map = {
@@ -220,6 +232,7 @@ function save() {
             if (data.value[k] && data.value[k].font) n.style.fontFamily = data.value[k].font
             else n.style.removeProperty('font-family')
             if (data.value[k] && data.value[k].textColor) n.style.color = data.value[k].textColor
+            else n.style.removeProperty('color')
           } catch (e) {}
         })
       }
@@ -233,6 +246,8 @@ function save() {
               else m.style.removeProperty('background')
               if (data.value[k] && data.value[k].font) m.style.fontFamily = data.value[k].font
               else m.style.removeProperty('font-family')
+              if (data.value[k] && data.value[k].textColor) m.style.color = data.value[k].textColor
+              else m.style.removeProperty('color')
             } catch (e) {}
           })
         }
@@ -245,7 +260,7 @@ function save() {
 
 function reset() {
   if (!confirm('Przywrócić domyślne ustawienia tej sekcji?')) return
-  data.value[selected.value] = { bg: '', font: systemFonts[0].family, blocks: [] }
+  data.value[selected.value] = { bg: '', textColor: '#222222', font: systemFonts[0].family, blocks: [], applyToMedia: false }
   save()
 }
 
@@ -253,7 +268,8 @@ const previewStyle = computed(() => {
   const k = selected.value
   const c = (data.value[k] && data.value[k].bg) || ''
   const f = (data.value[k] && data.value[k].font) || 'inherit'
-  return { background: c || 'transparent', fontFamily: f, padding: '1rem', borderRadius: '6px' }
+  const t = (data.value[k] && data.value[k].textColor) || '#222222'
+  return { background: c || 'transparent', fontFamily: f, color: t, padding: '1rem', borderRadius: '6px' }
 })
 </script>
 

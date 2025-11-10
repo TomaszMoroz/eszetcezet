@@ -1,8 +1,5 @@
 {
-  "generatedAt": "2025-10-29T17:30:29.065Z",
-  "files": [
-    "/img/1.jpg",
-    "/img/2.jpg",
+  "fileOrder": [
     "/img/dashboard/001_PPX_2894.JPG",
     "/img/dashboard/002_PIE_2198.JPG",
     "/img/dashboard/PPX_3633.JPG",
@@ -13,17 +10,11 @@
     "/img/dashboard/PZF_6721.JPG",
     "/img/dashboard/_PSP6619-Edit.JPG",
     "/img/dashboard/_PZF9320.JPG",
-    "/img/graph/logo_bw.png",
-    "/img/manifest.json",
     "/videos/AuchanK-v2.1F-sklepie.mp4",
     "/videos/Timeline3 DziuV.mov"
   ],
-  "sequences": {
-    "photos": [
-      "/img/2.jpg",
-      "/img/dashboard/001_PPX_2894.JPG",
-      "/img/dashboard/002_PIE_2198.JPG"
-    ],
+  "gallerySequence": {
+    "photos": [],
     "videos": [
       "/videos/AuchanK-v2.1F-sklepie.mp4",
       "/videos/Timeline3 DziuV.mov"
@@ -57,5 +48,41 @@
       "description": "",
       "startTime": 0
     }
-  }
+  },
+  "sections": {
+    "navbar": {
+      "bg": "",
+      "font": "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial",
+      "blocks": [],
+      "applyToMedia": false
+    },
+    "hero": {
+      "bg": "",
+      "font": "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial",
+      "blocks": [],
+      "applyToMedia": false
+    },
+    "gallery": {
+      "bg": "",
+      "font": "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial",
+      "blocks": [],
+      "applyToMedia": false
+    },
+    "info": {
+      "bg": "#030303",
+      "font": "Bison",
+      "blocks": [],
+      "applyToMedia": true,
+      "textColor": "#e7e4e4"
+    },
+    "footer": {
+      "bg": "#050505",
+      "font": "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial",
+      "blocks": [],
+      "applyToMedia": true,
+      "textColor": "#259842"
+    }
+  },
+  "theme": null,
+  "timestamp": "2025-11-10T09:18:45.272Z"
 }

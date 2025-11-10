@@ -33,7 +33,7 @@ const footerBlocks = computed(() => {
 })
 </script>
 
-<style scoped>
+<style>
 .site-footer {
   background: var(--section-footer-bg, var(--color-section-light)); /* theme-controlled light section */
   color: var(--section-footer-text-color, var(--color-text-dark));

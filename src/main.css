@@ -122,6 +122,7 @@ small, .caption {
 .site-footer {
   background: var(--section-footer-bg, var(--color-section-light));
   font-family: var(--section-footer-font, var(--font-base));
+  color: var(--section-footer-text-color, var(--color-text-dark));
 }
 
 /* Expose a simple helper for centered inner content */
