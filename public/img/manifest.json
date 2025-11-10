@@ -1,4 +1,5 @@
 {
+  "generatedAt": "2025-10-29T17:30:29.065Z",
   "files": [
     "/img/1.jpg",
     "/img/2.jpg",
@@ -13,7 +14,48 @@
     "/img/dashboard/_PSP6619-Edit.JPG",
     "/img/dashboard/_PZF9320.JPG",
     "/img/graph/logo_bw.png",
+    "/img/manifest.json",
     "/videos/AuchanK-v2.1F-sklepie.mp4",
     "/videos/Timeline3 DziuV.mov"
-  ]
+  ],
+  "sequences": {
+    "photos": [
+      "/img/2.jpg",
+      "/img/dashboard/001_PPX_2894.JPG",
+      "/img/dashboard/002_PIE_2198.JPG"
+    ],
+    "videos": [
+      "/videos/AuchanK-v2.1F-sklepie.mp4",
+      "/videos/Timeline3 DziuV.mov"
+    ]
+  },
+  "metadata": {
+    "/img/dashboard/PPX_3633.JPG": {
+      "title": "PPX_3633.JPG",
+      "ratio": "portrait",
+      "tags": "",
+      "focalX": 58,
+      "focalY": 11
+    },
+    "/videos/AuchanK-v2.1F-sklepie.mp4": {
+      "title": "AuchanK-v2.1F-sklepie.mp4",
+      "ratio": "landscape",
+      "tags": "",
+      "focalX": 49,
+      "focalY": 27,
+      "thumbnail": "",
+      "description": "",
+      "startTime": 0
+    },
+    "/videos/Timeline3 DziuV.mov": {
+      "title": "Timeline3 DziuV.mov",
+      "ratio": "landscape",
+      "tags": "",
+      "focalX": 50,
+      "focalY": 50,
+      "thumbnail": "",
+      "description": "",
+      "startTime": 0
+    }
+  }
 }

@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
   "dev": "vite",
+  "dev:pa": "vite --open /admin",
   "build": "vite build",
   "prebuild": "node ./scripts/prebuild.js",
     "preview": "vite preview",

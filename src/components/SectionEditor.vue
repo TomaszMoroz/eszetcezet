@@ -23,26 +23,30 @@
           </optgroup>
         </select>
       </label>
+      <label class="checkbox-row">
+        <input type="checkbox" v-model="cfg.applyToMedia" />
+        <span class="checkbox-label">Zastosuj tło bezpośrednio na warstwie media (np. <code>.hero-media</code>)</span>
+      </label>
     </div>
 
     <div class="content-editor">
       <h4>Treść sekcji (możesz dodać kilka bloków tekstu)</h4>
       <div v-for="(b, idx) in cfg.blocks" :key="idx" class="block-row">
-        <textarea v-model="cfg.blocks[idx]" rows="3" />
+        <textarea v-model="cfg.blocks[idx]" rows="3"></textarea>
         <div class="block-actions">
-          <button class="small" @click="removeBlock(idx)">Usuń</button>
-          <button class="small" @click="moveUp(idx)" :disabled="idx===0">Góra</button>
-          <button class="small" @click="moveDown(idx)" :disabled="idx===cfg.blocks.length-1">Dół</button>
+          <button class="btn small secondary" @click="removeBlock(idx)">Usuń</button>
+          <button class="btn small" @click="moveUp(idx)" :disabled="idx===0">Góra</button>
+          <button class="btn small" @click="moveDown(idx)" :disabled="idx===cfg.blocks.length-1">Dół</button>
         </div>
       </div>
       <div style="margin-top:0.5rem">
-        <button @click="addBlock">Dodaj blok tekstu</button>
+        <button class="btn" @click="addBlock">Dodaj blok tekstu</button>
       </div>
     </div>
 
     <div class="actions">
-      <button @click="save">Zapisz sekcję</button>
-      <button class="small" @click="reset">Resetuj</button>
+      <button class="btn" @click="save">Zapisz sekcję</button>
+      <button class="btn small secondary" @click="reset">Resetuj</button>
     </div>
 
     <div class="preview">
@@ -55,7 +59,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, onUnmounted } from 'vue'
 
 const SECTIONS_KEY = 'site-sections'
 
@@ -85,11 +89,12 @@ const data = ref({})
 
 function ensureDefaultsFor(key) {
   if (!data.value[key]) {
-    data.value[key] = { bg: '', font: systemFonts[0].family, blocks: [] }
+    data.value[key] = { bg: '', font: systemFonts[0].family, blocks: [], applyToMedia: false }
   } else {
     if (!Array.isArray(data.value[key].blocks)) data.value[key].blocks = []
     if (!data.value[key].font) data.value[key].font = systemFonts[0].family
     if (!data.value[key].bg) data.value[key].bg = ''
+    if (data.value[key].applyToMedia == null) data.value[key].applyToMedia = false
   }
 }
 
@@ -99,10 +104,8 @@ const cfg = computed(() => {
 })
 
 onMounted(() => {
-  try {
-    const saved = JSON.parse(localStorage.getItem(SECTIONS_KEY) || 'null')
-    if (saved && typeof saved === 'object') data.value = saved
-  } catch (e) {}
+  // load saved sections from localStorage
+  reloadData()
   // ensure defaults for all
   sections.forEach(s => ensureDefaultsFor(s.key))
 
@@ -127,8 +130,31 @@ onMounted(() => {
   } catch (e) { console.warn('Could not detect project fonts', e) }
 })
 
+// reload sections from storage (used when other windows/components update sections)
+function reloadData() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(SECTIONS_KEY) || 'null')
+    if (saved && typeof saved === 'object') data.value = saved
+    else data.value = {}
+  } catch (e) { data.value = {} }
+}
+
+// listen for external updates
+onMounted(() => {
+  const onUpdate = () => {
+    reloadData()
+  }
+  window.addEventListener('sections-updated', onUpdate)
+  window.addEventListener('storage', onUpdate)
+  onUnmounted(() => {
+    window.removeEventListener('sections-updated', onUpdate)
+    window.removeEventListener('storage', onUpdate)
+  })
+})
+
 function onSectionChange() {
-  // ensure present
+  // reload latest data and ensure defaults for the newly selected section
+  reloadData()
   ensureDefaultsFor(selected.value)
 }
 
@@ -174,6 +200,44 @@ function save() {
   try {
     localStorage.setItem(SECTIONS_KEY, JSON.stringify(data.value))
     applyBg(); applyFont()
+    // also set inline styles immediately for better visual feedback
+    try {
+      const map = {
+        navbar: '.site-header',
+        hero: '.hero',
+        gallery: '.works-section, .gallery-container',
+        info: '.text-section',
+        footer: '.site-footer'
+      }
+      const k = selected.value
+      const sel = map[k]
+      if (sel) {
+        const nodes = document.querySelectorAll(sel)
+        nodes.forEach(n => {
+          try {
+            if (data.value[k] && data.value[k].bg) n.style.background = data.value[k].bg
+            else n.style.removeProperty('background')
+            if (data.value[k] && data.value[k].font) n.style.fontFamily = data.value[k].font
+            else n.style.removeProperty('font-family')
+            if (data.value[k] && data.value[k].textColor) n.style.color = data.value[k].textColor
+          } catch (e) {}
+        })
+      }
+      // if admin requested, also apply to media layer (e.g. .hero-media)
+      try {
+        const mediaMap = { hero: '.hero-media' }
+        if (data.value[k] && data.value[k].applyToMedia && mediaMap[k]) {
+          document.querySelectorAll(mediaMap[k]).forEach(m => {
+            try {
+              if (data.value[k] && data.value[k].bg) m.style.background = data.value[k].bg
+              else m.style.removeProperty('background')
+              if (data.value[k] && data.value[k].font) m.style.fontFamily = data.value[k].font
+              else m.style.removeProperty('font-family')
+            } catch (e) {}
+          })
+        }
+      } catch (e) {}
+    } catch (e) {}
     try { window.dispatchEvent(new CustomEvent('sections-updated')) } catch(e) {}
     alert('Sekcja zapisana lokalnie')
   } catch (e) { console.warn(e) }
@@ -194,16 +258,16 @@ const previewStyle = computed(() => {
 </script>
 
 <style scoped>
-.section-editor { padding: 1rem; background: var(--Color-section-light, var(--color-section-light)); color: var(--color-text-dark); border-radius: 8px; }
+.section-editor { padding: 1rem; background: var(--color-section-dark); color: var(--color-text); border-radius: 8px; }
 .controls { display:flex; gap:1rem; flex-wrap:wrap }
-.controls label { display:flex; flex-direction:column }
+.controls label { display:flex; flex-direction:column; color: rgba(255,255,255,0.9) }
 .hex { width:5.5rem }
 .content-editor { margin-top:0.75rem }
 .block-row { display:flex; gap:0.5rem; align-items:flex-start; margin-bottom:0.5rem }
-.block-row textarea { flex:1; min-height:56px; border-radius:6px; padding:0.5rem }
+.block-row textarea { flex:1; min-height:56px; border-radius:6px; padding:0.5rem; background: rgba(255,255,255,0.02); color: var(--color-text); border: 1px solid rgba(255,255,255,0.04) }
 .block-actions { display:flex; flex-direction:column; gap:0.25rem }
 .actions { margin-top:0.75rem; display:flex; gap:0.5rem }
 .preview { margin-top:1rem }
-.preview-box { border:1px solid rgba(0,0,0,0.06); border-radius:8px; padding:0.75rem }
+.preview-box { border:1px solid rgba(255,255,255,0.04); border-radius:8px; padding:0.75rem; background: rgba(255,255,255,0.02) }
 .preview-block { margin-bottom:0.5rem }
 </style>

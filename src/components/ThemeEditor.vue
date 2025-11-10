@@ -10,8 +10,8 @@
     </div>
 
     <div class="actions">
-      <button @click="save">Zapisz</button>
-      <button @click="reset">Resetuj</button>
+      <button class="btn" @click="save">Zapisz</button>
+      <button class="btn secondary" @click="reset">Resetuj</button>
     </div>
 
     <div class="typography">
@@ -27,8 +27,8 @@
             <div style="font-weight:600">Google Fonts</div>
             <input v-model="googleFontQuery" placeholder="e.g. Roboto:ital,wght@0,400;1,700" />
             <div style="display:flex;gap:0.5rem;margin-top:0.25rem;align-items:center">
-              <button class="small" @click="loadGoogleFont">Load Google Font</button>
-              <button class="small" @click="addGoogleFontToList">Add to project fonts</button>
+              <button class="btn small" @click="loadGoogleFont">Load Google Font</button>
+              <button class="btn small" @click="addGoogleFontToList">Add to project fonts</button>
             </div>
           </label>
 
@@ -37,8 +37,8 @@
             <input v-model="customFontName" placeholder="Font family name" />
             <input v-model="customFontUrl" placeholder="URL do pliku font (woff/woff2/ttf)" />
             <div style="display:flex;gap:0.5rem;margin-top:0.25rem">
-              <button class="small" @click="addCustomFont">Dodaj font</button>
-              <button class="small" @click="copyFontFaceCss">Kopiuj CSS</button>
+              <button class="btn small" @click="addCustomFont">Dodaj font</button>
+              <button class="btn small" @click="copyFontFaceCss">Kopiuj CSS</button>
             </div>
           </label>
 
@@ -289,23 +289,23 @@ function copyFontFaceCss() {
 </script>
 
 <style scoped>
-.theme-editor { padding: 1rem; background: var(--color-section-light); color: var(--color-text-dark); border-radius: 8px; }
+.theme-editor { padding: 1rem; background: var(--color-section-dark); color: var(--color-text); border-radius: 8px; }
 .theme-editor h3 { margin-top: 0; }
 .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.75rem; }
 .field { display: flex; gap: 0.5rem; align-items: center; }
-.field label { min-width: 120px; font-size: 0.9rem; }
+.field label { min-width: 120px; font-size: 0.9rem; color: rgba(255,255,255,0.9) }
 .field input[type="color"] { width: 44px; height: 30px; border: none; padding: 0; }
-.field .hex { flex: 1; padding: 0.35rem 0.5rem; border-radius: 6px; border: 1px solid #ccc; }
+.field .hex { flex: 1; padding: 0.35rem 0.5rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.02); color: var(--color-text) }
 .actions { margin-top: 1rem; display:flex; gap:0.5rem; }
-.actions button { padding: 0.5rem 1rem; border-radius:6px; border:none; cursor:pointer }
-.actions button:first-child { background: var(--color-accent); color: #fff }
-.actions button:last-child { background: #ddd; color: #111 }
+.actions button { padding: 0.5rem 1rem; border-radius:6px; border:1px solid rgba(255,255,255,0.06); background: transparent; color: var(--color-text); cursor:pointer }
+.actions button:first-child { background: var(--color-accent); color: #fff; border-color: var(--color-accent) }
+.actions button:last-child { background: rgba(255,255,255,0.03); color: var(--color-text) }
 
-.typography { margin-top: 1rem; padding: 1rem; background: rgba(0,0,0,0.03); border-radius:8px }
+.typography { margin-top: 1rem; padding: 1rem; background: rgba(255,255,255,0.02); border-radius:8px }
 .typography-row { display:flex; gap:0.75rem; flex-wrap:wrap; align-items:center }
-.typography-row label { display:flex; flex-direction:column; font-size:0.85rem }
+.typography-row label { display:flex; flex-direction:column; font-size:0.85rem; color: rgba(255,255,255,0.9) }
 .typography-preview { margin-top:0.75rem }
-.preview-box { border-radius:8px; background:var(--color-section-light); border:1px solid rgba(0,0,0,0.06) }
+.preview-box { border-radius:8px; background: var(--color-section-dark); border:1px solid rgba(255,255,255,0.04); padding: 0.75rem }
 .preview-h1 { font-size:1.15rem; font-weight:700; margin-bottom:0.35rem }
 .preview-body { font-size:0.95rem }
 </style>

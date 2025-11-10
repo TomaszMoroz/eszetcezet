@@ -6,21 +6,24 @@
           <img src="/img/graph/logo_bw.png" alt="Warsaw Studios logo" class="logo-img" />
         </div>
       </div>
-      <div class="brand-text">
-        <slot name="brand"> </slot>
-      </div>
-      <nav class="main-nav">
-        <router-link to="/" class="nav-link">Home</router-link>
-        <router-link :to="{ path: '/', hash: '#works' }" class="nav-link">Portfolio</router-link>
-        <router-link :to="{ path: '/', hash: '#kontakt' }" class="nav-link">Kontakt</router-link>
-      </nav>
+          <div class="brand-text">
+            <slot name="brand"> </slot>
+          </div>
+          <button class="hamburger" @click="mobileOpen = !mobileOpen" aria-label="Toggle menu">☰</button>
+          <nav :class="['main-nav', { open: mobileOpen }]">
+            <router-link to="/" class="nav-link" @click="mobileOpen = false">Home</router-link>
+            <router-link :to="{ path: '/', hash: '#works' }" class="nav-link" @click="mobileOpen = false">Portfolio</router-link>
+            <router-link :to="{ path: '/', hash: '#kontakt' }" class="nav-link" @click="mobileOpen = false">Kontakt</router-link>
+          </nav>
     </div>
   </header>
 </template>
 
-<script setup>
-// prosty statyczny header — można później podpiąć router-link
-</script>
+    <script setup>
+    import { ref } from 'vue'
+
+    const mobileOpen = ref(false)
+    </script>
 
 <style scoped>
 .site-header {
@@ -77,7 +80,16 @@
   margin-left: 1rem;
   font-size: 0.95rem;
 }
+
+.hamburger { display: none; }
 @media (max-width: 900px) {
   .main-nav { display: none; }
+  .hamburger { display: block; background: transparent; border: 1px solid rgba(255,255,255,0.06); color: var(--color-text); padding: 0.4rem 0.6rem; border-radius: 6px; }
+  .main-nav.open { display: flex; position: absolute; right: 1.5rem; top: 64px; flex-direction: column; background: var(--section-navbar-bg, var(--color-header-bg)); padding: 0.75rem; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.5) }
+  .main-nav.open .nav-link { margin: 0.3rem 0 }
+}
+
+@media (min-width: 1200px) {
+  .main-nav a { font-size: 1.12rem; }
 }
 </style>

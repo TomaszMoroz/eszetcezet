@@ -1,13 +1,14 @@
 <template>
   <div class="admin-panel">
+    <div class="admin-inner">
     <div v-if="!authed" class="auth-modal">
       <div class="auth-box">
         <h2>Logowanie do panelu administracyjnego</h2>
         <p>Wprowadź hasło, aby kontynuować.</p>
         <input v-model="password" type="password" placeholder="Hasło" />
         <div class="auth-actions">
-          <button @click="tryLogin">Zaloguj</button>
-          <button @click="cancelLogin">Anuluj</button>
+          <button class="btn" @click="tryLogin">Zaloguj</button>
+          <button class="btn secondary" @click="cancelLogin">Anuluj</button>
         </div>
         <p class="hint">Domyślne hasło: <code>admin</code> (zmień to później)</p>
       </div>
@@ -15,14 +16,14 @@
     <div v-else>
       <h1>Panel administracyjny</h1>
     </div>
-    <section v-if="authed">
+  <section class="card" v-if="authed">
       <h2>Kolejność zdjęć/wideo</h2>
-      <label style="margin-bottom:0.5rem; display:flex; align-items:center; gap:0.5rem">
+      <label class="checkbox-row">
         <input type="checkbox" v-model="showVideos" @change="toggleShowVideos" />
         <span>Włącz sekcję wideo</span>
       </label>
-      <div class="edit-mode-switch" style="margin-bottom:1rem; display:flex; gap:0.5rem; align-items:center;">
-        <span style="font-weight:600; margin-right:0.5rem">Edytuj sekcję:</span>
+      <div class="edit-mode-switch">
+        <span class="switch-label">Edytuj sekcję:</span>
         <button :class="['mode-btn', { active: editingMode === 'photos' }]" @click="editingMode = 'photos'">Zdjęcia</button>
         <button :class="['mode-btn', { active: editingMode === 'videos' }]" @click="editingMode = 'videos'">Wideo</button>
       </div>
@@ -45,14 +46,14 @@
                 <div class="file-tile" role="group" :aria-label="`file ${element.name}`">
                   <span class="handle" aria-hidden>☰</span>
                   <span class="fname">{{ element.name }}</span>
-                  <button class="small" aria-label="Dodaj {{ element.name }} do sekwencji" @click.stop="addToSequence(element)">Dodaj</button>
+                  <button class="btn small secondary" aria-label="Dodaj {{ element.name }} do sekwencji" @click.stop="addToSequence(element)">Dodaj</button>
                 </div>
               </template>
             </draggable>
           </div>
           <div class="file-actions">
-            <button @click="saveFileOrder">Zapisz kolejność plików</button>
-            <button @click="applyFileOrder">Zastosuj kolejność do galerii</button>
+            <button class="btn" @click="saveFileOrder">Zapisz kolejność plików</button>
+            <button class="btn" @click="applyFileOrder">Zastosuj kolejność do galerii</button>
           </div>
         </div>
 
@@ -65,22 +66,23 @@
                   <span class="handle" aria-hidden>☰</span>
                   <span class="fname">{{ element.name }}</span>
                   <div>
-                    <button class="small" aria-label="Edytuj {{ element.name }}" @click.stop="selectSequenceItemByName(element.name)">Edytuj</button>
-                    <button class="small" aria-label="Usuń {{ element.name }} z sekwencji" @click.stop="removeFromSequence(index)">Usuń</button>
+                    <button class="btn small" aria-label="Edytuj {{ element.name }}" @click.stop="selectSequenceItemByName(element.name)">Edytuj</button>
+                    <button class="btn small secondary" aria-label="Usuń {{ element.name }} z sekwencji" @click.stop="removeFromSequence(index)">Usuń</button>
                   </div>
                 </div>
               </template>
             </draggable>
           </div>
           <div class="file-actions">
-            <button @click="saveGallerySequence">Zapisz sekwencję</button>
-            <button @click="applyGallerySequence">Zastosuj sekwencję w galerii</button>
-            <button @click="clearGallerySequence" class="small">Wyczyść</button>
+            <button class="btn" @click="saveGallerySequence">Zapisz sekwencję</button>
+            <button class="btn" @click="applyGallerySequence">Zastosuj sekwencję w galerii</button>
+            <button class="btn small secondary" @click="clearGallerySequence">Wyczyść</button>
+            <button class="btn small" @click="publishManifest">Publikuj manifest</button>
           </div>
         </div>
       </div>
   </section>
-  <section v-if="authed">
+  <section class="card" v-if="authed">
     <h2>Edytor metadanych</h2>
       <div class="meta-editor">
       <div v-if="selectedMetaName">
@@ -111,9 +113,9 @@
               </select>
             </label>
 
-            <label>Start Time (sekundy):
+            <label class="time-row">Start Time (sekundy):
               <input type="number" min="0" step="0.1" v-model.number="metadata[selectedMetaName].startTime" @input="onStartTimeInput(selectedMetaName)" />
-              <div style="display:flex;align-items:center;gap:0.5rem">
+              <div class="time-hint">
                 <div class="hint">Jeśli ustawione, wideo w lightboxie rozpocznie od tej sekundy.</div>
                 <div v-if="metadata[selectedMetaName] && metadata[selectedMetaName].startTime != null" class="time-preview">({{ formatTime(metadata[selectedMetaName].startTime) }})</div>
               </div>
@@ -127,9 +129,9 @@
             </fieldset>
 
             <div class="file-actions">
-              <button @click="saveMetadata">Zapisz metadane</button>
-              <button class="small" @click="removeFromMetadata(selectedMetaName)">Usuń metadane</button>
-              <button class="small" @click="selectedMetaName = null">Zamknij</button>
+              <button class="btn" @click="saveMetadata">Zapisz metadane</button>
+              <button class="btn small secondary" @click="removeFromMetadata(selectedMetaName)">Usuń metadane</button>
+              <button class="btn small secondary" @click="selectedMetaName = null">Zamknij</button>
             </div>
           </div>
 
@@ -137,29 +139,51 @@
             <p>Podgląd kafelka (kliknij, aby ustawić punkt):</p>
             <div class="preview-wrap" @click.stop="previewClick($event)">
               <template v-if="isVideoPreview(selectedMetaName)">
-                <video :src="previewSrcFor(selectedMetaName)" controls muted loop playsinline style="width:100%;height:100%;object-fit:cover"></video>
+                <video :src="previewSrcFor(selectedMetaName)" controls muted loop playsinline class="preview-media"></video>
               </template>
               <template v-else>
-                <img :src="previewSrcFor(selectedMetaName)" alt="preview" />
+                <img :src="previewSrcFor(selectedMetaName)" alt="preview" class="preview-media" />
               </template>
               <div v-if="metadata[selectedMetaName].focalX!=null" class="focal-dot" :style="{ left: metadata[selectedMetaName].focalX + '%', top: metadata[selectedMetaName].focalY + '%' }"></div>
             </div>
           </div>
         </div>
       </div>
-      <div v-else>
-        <p>Kliknij element w sekwencji, aby edytować jego metadane.</p>
-      </div>
     </div>
   </section>
-    <section>
+    <section class="card">
       <h2>Motyw strony</h2>
       <ThemeEditor />
     </section>
-    <section>
+    <section class="card">
       <h2>Edytor sekcji</h2>
       <SectionEditor />
     </section>
+    <section class="card">
+      <h2>Podsumowanie zmian i publikacja</h2>
+      <div class="publish-summary">
+        <div class="summary-row"><strong>Pliki na serwerze:</strong> {{ fileOrder.length }}</div>
+        <div class="summary-row"><strong>Sekwencja zdjęć:</strong> {{ gallerySequencePhotos.length }}</div>
+        <div class="summary-row"><strong>Sekwencja wideo:</strong> {{ gallerySequenceVideos.length }}</div>
+        <div class="summary-row"><strong>Pozycje w metadata:</strong> {{ metadataCount }}</div>
+        <div class="summary-row"><strong>Konfiguracja sekcji (site-sections):</strong> {{ sectionsCount }}</div>
+        <div class="summary-row"><strong>Motyw (site-theme):</strong> {{ themePresent ? 'tak' : 'brak' }}</div>
+
+        <label class="endpoint-row">Endpoint publikacji:
+          <input v-model="publishEndpoint" placeholder="https://example.com/api/manifest" />
+        </label>
+        <label class="endpoint-row">Token (X-ADMIN-TOKEN):
+          <input v-model="publishToken" placeholder="opcjonalny token" />
+        </label>
+
+        <div class="file-actions">
+          <button class="btn" @click="publishChanges">Publikuj zmiany na serwer</button>
+          <button class="btn small secondary" @click="savePublishSettings">Zapisz ustawienia</button>
+        </div>
+        <div v-if="lastPublishedAt" class="hint">Ostatnia publikacja: {{ lastPublishedAt }}</div>
+      </div>
+    </section>
+    </div>
   </div>
 </template>
 
@@ -168,12 +192,11 @@ import { ref, onMounted, computed } from 'vue';
 import draggable from 'vuedraggable';
 import ThemeEditor from '../components/ThemeEditor.vue';
 import SectionEditor from '../components/SectionEditor.vue';
+// admin styles
+import '../styles/admin.css'
 
-const items = ref([
-  { id: 1, type: 'photo', title: 'Salon', thumb: '/img/1.jpg' },
-  { id: 2, type: 'photo', title: 'Jadalnia', thumb: '/img/2.jpg' },
-  { id: 3, type: 'video', title: 'Prezentacja', thumb: '' },
-]);
+// no hard-coded sample items — items are populated from manifest/sequence
+const items = ref([])
 
 const fileOrder = ref([])
 const gallerySequencePhotos = ref([])
@@ -187,6 +210,9 @@ const GALLERY_SEQUENCE_KEY_PHOTOS = 'gallery-sequence:photos'
 const GALLERY_SEQUENCE_KEY_VIDEOS = 'gallery-sequence:videos'
 const SHOW_VIDEOS_KEY = 'gallery-show-videos'
 const DESCRIPTION_MAXLEN = 1000
+const PUBLISH_ENDPOINT_KEY = 'admin-publish-endpoint'
+const PUBLISH_TOKEN_KEY = 'admin-publish-token'
+const LAST_PUBLISHED_KEY = 'admin-last-published'
 
 // computed writable sequence for current editing mode
 const gallerySequence = computed({
@@ -256,39 +282,57 @@ function cancelLogin() {
 
 const FILE_ORDER_KEY = 'gallery-file-order'
 
+// publish endpoint (configurable via Vite env)
+const PUBLISH_URL = import.meta.env.VITE_PUBLISH_MANIFEST_URL || '/api/manifest'
+const ADMIN_TOKEN = import.meta.env.VITE_ADMIN_TOKEN || ''
+
 async function loadManifest() {
   try {
+    // prefer backend file listing which exposes files uploaded via FTP or other methods
+    const filesRes = await fetch('/api/files')
+    if (filesRes && filesRes.ok) {
+      const body = await filesRes.json()
+      const list = (body.files || []).map(f => ({ name: f.name, type: f.type || 'photo' }))
+      // merge with saved order if present
+      const saved = JSON.parse(localStorage.getItem(FILE_ORDER_KEY) || 'null')
+      if (saved && Array.isArray(saved) && saved.length) {
+        const merged = saved.map(n => {
+          const found = list.find(x => x.name === n)
+          return { name: n, type: found ? found.type : 'photo' }
+        })
+        list.forEach(it => { if (!merged.find(m => m.name === it.name)) merged.push(it) })
+        fileOrder.value = merged
+      } else {
+        fileOrder.value = list
+      }
+      return
+    }
+
+    // fallback: read manifest.json from public if /api/files isn't available
     const res = await fetch('/img/manifest.json')
     if (!res.ok) return
     const data = await res.json()
-    // Build file objects { name, type }
-    // Surface dashboard images and any video files in the manifest for portfolio management
     const list = []
     ;(data.files || []).forEach(p => {
       if (p.includes('/img/dashboard/')) {
         list.push({ name: p, type: 'photo' })
       } else if (p.startsWith('/videos/') || p.includes('/videos/')) {
-        // treat files under /videos/ as videos
         list.push({ name: p, type: 'video' })
       }
     })
-    // load saved order or use manifest order
     const saved = JSON.parse(localStorage.getItem(FILE_ORDER_KEY) || 'null')
     if (saved && Array.isArray(saved) && saved.length) {
-      // create fileOrder from saved, but ensure we include any new files
       const merged = saved.map(n => {
-        // try to keep type if present in manifest
         const found = list.find(x => x.name === n)
         return { name: n, type: found ? found.type : 'photo' }
       })
-      // append any manifest items not present in saved
       list.forEach(it => { if (!merged.find(m=>m.name===it.name)) merged.push(it) })
       fileOrder.value = merged
     } else {
       fileOrder.value = list
     }
   } catch (e) {
-    console.warn('Could not load manifest', e)
+    console.warn('Could not load manifest/files', e)
   }
 }
 
@@ -356,7 +400,69 @@ onMounted(() => {
     const sv = localStorage.getItem(SHOW_VIDEOS_KEY)
     if (sv != null) showVideos.value = sv === '1' || sv === 'true'
   } catch (e) {}
+  // load publish settings
+  try {
+    const ep = localStorage.getItem(PUBLISH_ENDPOINT_KEY)
+    if (ep) publishEndpoint.value = ep
+    const tok = localStorage.getItem(PUBLISH_TOKEN_KEY)
+    if (tok) publishToken.value = tok
+    const last = localStorage.getItem(LAST_PUBLISHED_KEY)
+    if (last) lastPublishedAt.value = last
+  } catch (e) {}
 })
+
+// publish UI state
+const publishEndpoint = ref(localStorage.getItem(PUBLISH_ENDPOINT_KEY) || '/api/manifest')
+const publishToken = ref(localStorage.getItem(PUBLISH_TOKEN_KEY) || '')
+const lastPublishedAt = ref(localStorage.getItem(LAST_PUBLISHED_KEY) || '')
+
+const metadataCount = computed(() => Object.keys(metadata.value || {}).length)
+const sectionsCount = computed(() => {
+  try { const s = JSON.parse(localStorage.getItem('site-sections')||'{}'); return Object.keys(s||{}).length } catch(e){return 0}
+})
+const themePresent = computed(() => !!localStorage.getItem('site-theme'))
+
+function savePublishSettings() {
+  try {
+    localStorage.setItem(PUBLISH_ENDPOINT_KEY, publishEndpoint.value || '')
+    localStorage.setItem(PUBLISH_TOKEN_KEY, publishToken.value || '')
+    alert('Ustawienia publikacji zapisane lokalnie')
+  } catch (e) { console.warn(e) }
+}
+
+async function publishChanges() {
+  const ep = (publishEndpoint.value || '').trim()
+  if (!ep) return alert('Podaj endpoint publikacji')
+  // build payload
+  const payload = {
+    fileOrder: fileOrder.value.map(f => f.name),
+    gallerySequence: {
+      photos: (gallerySequencePhotos.value || []).map(f => f.name || f),
+      videos: (gallerySequenceVideos.value || []).map(f => f.name || f)
+    },
+    metadata: metadata.value || {},
+    sections: (() => { try { return JSON.parse(localStorage.getItem('site-sections')||'{}') } catch(e){return {}} })(),
+    theme: (() => { try { return JSON.parse(localStorage.getItem('site-theme')||'null') } catch(e){return null} })(),
+    timestamp: new Date().toISOString()
+  }
+
+  try {
+    const headers = { 'Content-Type': 'application/json' }
+    if (publishToken.value) headers['x-admin-token'] = publishToken.value
+    const res = await fetch(ep, { method: 'POST', headers, body: JSON.stringify(payload) })
+    if (!res.ok) {
+      const txt = await res.text().catch(()=>res.statusText)
+      return alert('Publikacja nie powiodła się: ' + res.status + ' ' + txt)
+    }
+    const now = new Date().toLocaleString()
+    lastPublishedAt.value = now
+    try { localStorage.setItem(LAST_PUBLISHED_KEY, now) } catch(e){}
+    alert('Publikacja zakończona powodzeniem')
+  } catch (e) {
+    console.error(e)
+    alert('Błąd podczas publikacji: ' + (e && e.message ? e.message : e))
+  }
+}
 
 function addToSequence(file) {
   if (!file) return
@@ -405,6 +511,36 @@ function applyGallerySequence() {
   // Notifying user: Gallery.vue will pick up the sequence on reload or on mount
   try { window.dispatchEvent(new CustomEvent('gallery-updated')) } catch (e) {}
   alert('Sekwencja zapisana. Galeria zostanie zaktualizowana automatycznie.')
+}
+
+// Publish a manifest (files, sequences and metadata) to a central endpoint
+async function publishManifest() {
+  try {
+    const manifest = {
+      generatedAt: new Date().toISOString(),
+      files: fileOrder.value.map(f => f.name),
+      sequences: {
+        photos: gallerySequencePhotos.value.map(f => f.name),
+        videos: gallerySequenceVideos.value.map(f => f.name)
+      },
+      metadata: metadata.value || {}
+    }
+
+    const headers = { 'Content-Type': 'application/json' }
+    if (ADMIN_TOKEN) headers['X-ADMIN-TOKEN'] = ADMIN_TOKEN
+
+    const res = await fetch(PUBLISH_URL, { method: 'POST', headers, body: JSON.stringify(manifest) })
+    if (!res.ok) {
+      const txt = await res.text().catch(()=>res.statusText)
+      throw new Error(`Publish failed: ${res.status} ${txt}`)
+    }
+    alert('Manifest został opublikowany pomyślnie')
+    // notify gallery to refresh
+    try { window.dispatchEvent(new CustomEvent('gallery-updated')) } catch (e) {}
+  } catch (e) {
+    console.error('publishManifest error', e)
+    alert('Błąd publikacji manifestu: ' + (e && e.message ? e.message : String(e)))
+  }
 }
 
 function selectSequenceItemByName(name) {
@@ -505,78 +641,3 @@ function removeFromMetadata(name) {
   localStorage.setItem(METADATA_KEY, JSON.stringify(metadata.value))
 }
 </script>
-
-<style scoped>
-.admin-panel {
-  background: var(--color-bg);
-  min-height: 100vh;
-  color: var(--color-text);
-  padding: 2rem;
-}
-.admin-tile {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  background: var(--color-section-dark);
-  border-radius: 1rem;
-  margin-bottom: 1rem;
-  padding: 0.5rem 1rem;
-}
-.admin-tile img {
-  width: 60px;
-  height: 40px;
-  object-fit: cover;
-  border-radius: 0.5rem;
-}
-/* Auth modal */
-.auth-modal { position: fixed; inset: 0; display:flex; align-items:center; justify-content:center; background: rgba(0,0,0,0.6); z-index:1200 }
-.auth-box { background: var(--color-section-light); color: var(--color-text-dark); padding: 2rem; border-radius: 12px; width: 420px; max-width: calc(100% - 48px) }
-.auth-box input { width:100%; padding:0.6rem; margin:0.5rem 0; border-radius:8px; border:1px solid rgba(0,0,0,0.1) }
-.auth-actions { display:flex; gap:0.5rem }
-.auth-box .hint { font-size:0.85rem; color: rgba(0,0,0,0.6); margin-top:0.5rem }
-section {
-  margin-bottom: 2rem;
-}
-label {
-  display: block;
-  margin-bottom: 1rem;
-}
-input[type="color"] {
-  margin-left: 1rem;
-  width: 40px;
-  height: 30px;
-  border: none;
-  border-radius: 0.5rem;
-}
-button {
-  background: #3a3f4b;
-  color: #fff;
-  border: none;
-  border-radius: 1rem;
-  padding: 0.5rem 2rem;
-  cursor: pointer;
-}
-
-.files-grid { display:flex; gap:1rem; align-items:flex-start; }
-.files-col, .seq-col { flex:1; min-width:0 }
-.file-list, .sequence-list { max-height: 320px; overflow:auto; padding:0.5rem; border-radius:8px; background: rgba(255,255,255,0.02) }
-.file-tile { display:flex; justify-content:space-between; align-items:center; gap:0.5rem; padding:0.45rem 0.6rem; border-radius:6px; margin-bottom:0.4rem }
-.file-tile .fname { font-size:0.9rem; word-break: break-word; color: var(--color-text) }
-.file-actions { display:flex; gap:0.5rem; margin-top:0.5rem }
-.small { padding:0.25rem 0.6rem; font-size:0.85rem; border-radius:6px }
-.divider { height: 1px; background: rgba(255,255,255,0.06); margin: 1rem 0; }
-.file-tile .handle { margin-right:0.5rem; cursor: grab; color: var(--color-text); user-select: none; }
-.file-tile .handle:active { cursor: grabbing }
-.file-tile button.small { min-width: 56px }
-.file-tile .fname { max-width: 56%; overflow: hidden; text-overflow: ellipsis; }
-/* Meta editor preview styles */
-.meta-grid { display:flex; gap:1rem; align-items:flex-start }
-.meta-left { flex:1 }
-.meta-right { width:260px }
-.preview-wrap { width:240px; height:180px; border-radius:8px; overflow:hidden; position:relative; background:var(--color-section-dark); display:flex; align-items:center; justify-content:center }
-.preview-wrap img { width:100%; height:100%; object-fit:cover; display:block }
-.focal-dot { position:absolute; width:12px; height:12px; border-radius:50%; background: rgba(255,255,255,0.95); transform: translate(-50%, -50%); border: 2px solid rgba(0,0,0,0.6) }
-.focal-fieldset { border:1px solid rgba(255,255,255,0.04); padding:0.6rem; border-radius:8px }
-.meta-grid .hint { font-size:0.85rem; color: rgba(255,255,255,0.6); margin-bottom:0.5rem }
-.desc-counter { font-size:0.85rem; color: rgba(255,255,255,0.6); margin-top:0.25rem }
-</style>

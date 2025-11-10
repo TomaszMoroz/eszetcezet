@@ -124,39 +124,10 @@ const SHOW_VIDEOS_KEY = 'gallery-show-videos'
 const GALLERY_SEQUENCE_KEY_PHOTOS = 'gallery-sequence:photos'
 const GALLERY_SEQUENCE_KEY_VIDEOS = 'gallery-sequence:videos'
 
-// Sample data z różnymi proporcjami - więcej zdjęć do testowania siatki
-const galleryData = ref([
-  // Zdjęcia - Wnętrza mieszkalne
-  { id: 1, type: 'photo', title: 'Apartament w centrum', src: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=400', ratio: 'landscape', tags: ['wnętrza', 'mieszkanie'] },
-  { id: 2, type: 'photo', title: 'Minimalistyczna kuchnia', src: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400', ratio: 'square', tags: ['kuchnia', 'minimalizm'] },
-  { id: 3, type: 'photo', title: 'Salon z kominkiem', src: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=300', ratio: 'portrait', tags: ['salon', 'kominek'] },
-  { id: 4, type: 'photo', title: 'Sypialnia skandynawska', src: 'https://images.unsplash.com/photo-1540932239986-30128078f3c5?w=500', ratio: 'landscape', tags: ['sypialnia', 'skandynawski'] },
-  { id: 5, type: 'photo', title: 'Łazienka loft', src: 'https://images.unsplash.com/photo-1552321554-5fefe8c9ef14?w=300', ratio: 'portrait', tags: ['łazienka', 'loft'] },
-  { id: 6, type: 'photo', title: 'Biuro domowe', src: 'https://images.unsplash.com/photo-1586717791821-3f44a563fa4c?w=400', ratio: 'square', tags: ['biuro', 'praca'] },
-  { id: 7, type: 'photo', title: 'Jadalnia industrialna', src: 'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=400', ratio: 'landscape', tags: ['jadalnia', 'industrial'] },
-  { id: 8, type: 'photo', title: 'Korytarz z galerią', src: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=300', ratio: 'portrait', tags: ['korytarz', 'sztuka'] },
-  { id: 9, type: 'photo', title: 'Kuchnia otwarta', src: 'https://images.unsplash.com/photo-1565183928294-7063f23ce0f8?w=500', ratio: 'landscape', tags: ['kuchnia', 'otwarta'] },
-  { id: 10, type: 'photo', title: 'Garderoba', src: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=300', ratio: 'portrait', tags: ['garderoba', 'organizacja'] },
-  { id: 11, type: 'photo', title: 'Taras miejski', src: 'https://images.unsplash.com/photo-1502005229762-cf1b2da7c5d6?w=400', ratio: 'square', tags: ['taras', 'outdoor'] },
-  { id: 12, type: 'photo', title: 'Pokój dziecięcy', src: 'https://images.unsplash.com/photo-1586717799252-bd134ad00e26?w=400', ratio: 'landscape', tags: ['dziecięcy', 'kolorowy'] },
-  { id: 13, type: 'photo', title: 'Salon TV', src: 'https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?w=300', ratio: 'portrait', tags: ['salon', 'rozrywka'] },
-  { id: 14, type: 'photo', title: 'Kuchnia retro', src: 'https://images.unsplash.com/photo-1556909375-f3a5d1915b5e?w=400', ratio: 'square', tags: ['kuchnia', 'retro'] },
-  { id: 15, type: 'photo', title: 'Łazienka z wanną', src: 'https://images.unsplash.com/photo-1552321554-26fc821d0568?w=500', ratio: 'landscape', tags: ['łazienka', 'wanna'] },
-  
-  // Więcej zdjęć z różnymi proporcjami
-  { id: 16, type: 'photo', title: 'Biblioteka domowa', src: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300', ratio: 'portrait', tags: ['biblioteka', 'książki'] },
-  { id: 17, type: 'photo', title: 'Wnętrze loftu', src: 'https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=400', ratio: 'square', tags: ['loft', 'przestrzeń'] },
-  { id: 18, type: 'photo', title: 'Salon z widokiem', src: 'https://images.unsplash.com/photo-1556020685-ae41abfc9365?w=500', ratio: 'landscape', tags: ['salon', 'widok'] },
-  { id: 19, type: 'photo', title: 'Przedpokój elegancki', src: 'https://images.unsplash.com/photo-1586717791821-3f44a563fa4c?w=300', ratio: 'portrait', tags: ['przedpokój', 'elegancki'] },
-  { id: 20, type: 'photo', title: 'Kąt relaksu', src: 'https://images.unsplash.com/photo-1565182999561-18d7dc61c393?w=400', ratio: 'square', tags: ['relaks', 'czytanie'] },
-  
-  // Wideo
-  { id: 21, type: 'video', title: 'Prezentacja apartamentu', src: '/videos/apartment-tour.mp4', thumbnail: 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=400', ratio: 'landscape', tags: ['prezentacja', 'mieszkanie'] },
-  { id: 22, type: 'video', title: 'Proces remontu', src: '/videos/renovation.mp4', thumbnail: 'https://images.unsplash.com/photo-1503387762-592deb58ef4e?w=400', ratio: 'square', tags: ['remont', 'proces'] },
-  { id: 23, type: 'video', title: 'Before & After', src: '/videos/before-after.mp4', thumbnail: 'https://images.unsplash.com/photo-1484154218962-a197022b5858?w=300', ratio: 'portrait', tags: ['transformacja', 'porównanie'] },
-  { id: 24, type: 'video', title: 'Aranżacja wnętrz', src: '/videos/interior-design.mp4', thumbnail: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=500', ratio: 'landscape', tags: ['aranżacja', 'projektowanie'] },
-  { id: 25, type: 'video', title: 'Timelapse budowy', src: '/videos/construction.mp4', thumbnail: 'https://images.unsplash.com/photo-1541888946425-d81bb19240f5?w=400', ratio: 'square', tags: ['budowa', 'timelapse'] },
-])
+// `galleryData` is intentionally empty here — we only populate gallery items
+// from a manifest (`/img/manifest.json`) or from explicit sequences/metadata
+// saved to localStorage. This avoids any mock/sample data baked into the app.
+const galleryData = ref([])
 
 // Computed properties
 const availableTags = computed(() => {
@@ -422,20 +393,23 @@ const applyMetadata = (meta) => {
 // Load gallery images from /img/manifest.json and replace galleryData with those entries.
 const loadGalleryFromManifest = async () => {
   try {
-    const res = await fetch('/img/manifest.json')
+    // Respect Vite's base path so the app works when deployed under a subpath.
+    const base = (import.meta.env.BASE_URL ?? '/')
+    const manifestUrl = base.replace(/\/?$/, '/') + 'img/manifest.json'
+    const res = await fetch(manifestUrl)
     if (!res.ok) return
     const data = await res.json()
     if (!data || !Array.isArray(data.files) || !data.files.length) return
     // build gallery items from manifest but only from /img/dashboard folder
     const items = []
     data.files.forEach((f, idx) => {
-      // images from dashboard
-      if (f.includes('/img/dashboard/') && /\.(jpe?g|png|webp|avif|gif|heic|bmp)$/i.test(f)) {
+      // images from dashboard (accept either leading slash or not)
+      if ((f.includes('/img/dashboard/') || f.includes('img/dashboard/')) && /\.(jpe?g|png|webp|avif|gif|heic|bmp)$/i.test(f)) {
         const name = f.split('/').pop()
         items.push({ id: 10000 + items.length, type: 'photo', title: name, src: f, ratio: 'landscape', tags: [], focalX: 50, focalY: 50 })
       }
       // video files in /videos/
-      if ((f.startsWith('/videos/') || f.includes('/videos/')) && /\.(mp4|webm|m4v|mov|ogg)$/i.test(f)) {
+      if ((f.startsWith('/videos/') || f.includes('/videos/') || f.includes('videos/')) && /\.(mp4|webm|m4v|mov|ogg)$/i.test(f)) {
         const name = f.split('/').pop()
         const it = { id: 20000 + items.length, type: 'video', title: name, src: f, thumbnail: '', ratio: 'landscape', tags: [], focalX: 50, focalY: 50 }
         items.push(it)
@@ -460,7 +434,10 @@ function probeForPoster(item) {
   return new Promise((resolve) => {
     if (!item || !item.src) return resolve()
     const base = item.src.split('/').pop().split('.').slice(0, -1).join('.')
-    const candidates = [`/img/posters/${base}.webp`, `/img/posters/${base}.jpg`, `/img/posters/${base}.jpeg`]
+    // Use Vite base so posters are resolved correctly in production builds
+    const baseUrl = (import.meta.env.BASE_URL ?? '/')
+    const postersPrefix = baseUrl.replace(/\/?$/, '/') + 'img/posters/'
+    const candidates = [postersPrefix + `${base}.webp`, postersPrefix + `${base}.jpg`, postersPrefix + `${base}.jpeg`]
     let i = 0
     const tryNext = () => {
       if (i >= candidates.length) return resolve()

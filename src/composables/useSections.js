@@ -12,7 +12,7 @@ function load() {
   } catch (e) {
     sections.value = {}
   }
-  try { applyCssVars() } catch (e) {}
+  try { applyCssVars(); applyInlineSectionStyles() } catch (e) {}
 }
 
 function applyCssVars() {
@@ -25,6 +25,53 @@ function applyCssVars() {
       // optional text color
       if (cfg.textColor) try { document.documentElement.style.setProperty(`--section-${k}-text-color`, cfg.textColor) } catch(e) {}
     })
+  } catch (e) {}
+}
+
+// apply inline styles to known selectors so background changes are visible even when
+// elements have overlay children or stronger rules.
+function applyInlineSectionStyles() {
+  try {
+    const map = {
+      navbar: '.site-header',
+      hero: '.hero',
+      gallery: '.works-section, .gallery-container',
+      info: '.text-section',
+      footer: '.site-footer'
+    }
+    const s = sections.value || {}
+    Object.keys(map).forEach(k => {
+      const sel = map[k]
+      const cfg = s[k] || {}
+      const nodes = document.querySelectorAll(sel)
+      nodes.forEach(n => {
+        try {
+          if (cfg.bg) n.style.background = cfg.bg
+          else n.style.removeProperty('background')
+          if (cfg.font) n.style.fontFamily = cfg.font
+          else n.style.removeProperty('font-family')
+          if (cfg.textColor) n.style.color = cfg.textColor
+        } catch (e) {}
+      })
+    })
+    // also apply to media layers if requested
+    try {
+      const mediaMap = { hero: '.hero-media' }
+      Object.keys(mediaMap).forEach(k => {
+        const sel = mediaMap[k]
+        const cfg = s[k] || {}
+        if (cfg && cfg.applyToMedia) {
+          document.querySelectorAll(sel).forEach(m => {
+            try {
+              if (cfg.bg) m.style.background = cfg.bg
+              else m.style.removeProperty('background')
+              if (cfg.font) m.style.fontFamily = cfg.font
+              else m.style.removeProperty('font-family')
+            } catch (e) {}
+          })
+        }
+      })
+    } catch (e) {}
   } catch (e) {}
 }
 
@@ -43,6 +90,8 @@ window.addEventListener('storage', () => applyCssVars())
 window.addEventListener('sections-updated', () => applyCssVars())
 // initial apply
 applyCssVars()
+// also apply inline styles on init
+applyInlineSectionStyles()
 
 export function useSections() {
   return { sections, reload: load }
