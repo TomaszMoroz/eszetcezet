@@ -50,18 +50,18 @@
     <!-- Masonry Grid -->
     <div class="masonry-grid" ref="masonryGrid">
       <div 
-          v-for="item in filteredItems" 
-          :key="item.id"
-          :class="['masonry-item', `ratio-${tileRatio}`]"
-          @click="openLightbox(item)"
-        >
-          <img 
-            v-if="currentMode === 'photos'" 
-            :src="item.src" 
-            :alt="item.title"
-            loading="lazy"
-            :style="{ objectPosition: (item.focalX!=null ? (item.focalX + '% ' + (item.focalY!=null ? item.focalY + '%' : '50%')) : '50% 50%') }"
-          />
+        v-for="item in filteredItems" 
+        :key="item.id"
+        :class="['masonry-item', 'ratio-landscape']"
+        @click="openLightbox(item)"
+      >
+        <img 
+          v-if="currentMode === 'photos'" 
+          :src="item.src" 
+          :alt="item.title"
+          loading="lazy"
+          :style="{ objectPosition: (item.focalX!=null ? (item.focalX + '% ' + (item.focalY!=null ? item.focalY + '%' : '50%')) : '50% 50%'), objectFit: 'cover' }"
+        />
         <div v-else class="video-preview">
           <div class="play-icon">▶</div>
           <template v-if="item.thumbnail">
@@ -324,6 +324,7 @@ const applyGallerySequence = (seq, strict = false) => {
   }
   const seqBasenames = seq.map(s => basename(s))
 
+  // Tylko te elementy, które są obecne w galleryData (czyli w manifest.json)
   const remaining = [...galleryData.value]
   const reordered = []
 
@@ -345,7 +346,8 @@ const applyGallerySequence = (seq, strict = false) => {
     // append leftovers
     reordered.push(...remaining)
   }
-  galleryData.value = reordered
+  // Odfiltrowanie: tylko elementy, które istnieją w galleryData
+  galleryData.value = reordered.filter(Boolean)
 }
 
 // Merge metadata (object keyed by /img/... or filename) into current galleryData items
@@ -395,14 +397,15 @@ const loadGalleryFromManifest = async () => {
     if (!data || !Array.isArray(data.files) || !data.files.length) return
     if (lastManifestTimestamp === data.timestamp) return // no change
     lastManifestTimestamp = data.timestamp
+    // Pokazuj TYLKO zdjęcia z /img/dashboard/ i filmy z /videos/ (spójnie z PA)
     const photos = []
     const videos = []
     data.files.forEach((f, idx) => {
-      if ((f.includes('/img/dashboard/') || f.includes('img/dashboard/')) && /\.(jpe?g|png|webp|avif|gif|heic|bmp)$/i.test(f)) {
+      if ((f.startsWith('/img/dashboard/') || f.startsWith('img/dashboard/')) && /\.(jpe?g|png|webp|avif|gif|heic|bmp)$/i.test(f)) {
         const name = f.split('/').pop()
         photos.push({ id: 10000 + photos.length, type: 'photo', title: name, src: f, ratio: 'landscape', tags: [], focalX: 50, focalY: 50 })
       }
-      if ((f.startsWith('/videos/') || f.includes('/videos/') || f.includes('videos/')) && /\.(mp4|webm|m4v|mov|ogg)$/i.test(f)) {
+      if ((f.startsWith('/videos/') || f.includes('/videos/')) && /\.(mp4|webm|m4v|mov|ogg)$/i.test(f)) {
         const name = f.split('/').pop()
         const it = { id: 20000 + videos.length, type: 'video', title: name, src: f, thumbnail: '', ratio: 'landscape', tags: [], focalX: 50, focalY: 50 }
         videos.push(it)
