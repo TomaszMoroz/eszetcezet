@@ -4,11 +4,22 @@ const KEY = 'site-sections'
 
 const sections = ref({})
 
-function load() {
+
+
+async function load() {
+  // ZAWSZE pobieraj sekcje z manifestu (SPA ignoruje localStorage)
   try {
-    const s = JSON.parse(localStorage.getItem(KEY) || 'null')
-    if (s && typeof s === 'object') sections.value = s
-    else sections.value = {}
+    const res = await fetch('/img/manifest.json', { cache: 'reload' })
+    if (res.ok) {
+      const data = await res.json()
+      if (data && data.sections && typeof data.sections === 'object') {
+        sections.value = data.sections
+      } else {
+        sections.value = {}
+      }
+    } else {
+      sections.value = {}
+    }
   } catch (e) {
     sections.value = {}
   }
@@ -79,11 +90,23 @@ function applyInlineSectionStyles() {
 load()
 
 // listen for storage events from other windows and custom events
+
+// Listen for storage events from other windows and custom events
 window.addEventListener('storage', (e) => {
   if (!e) return
   if (e.key === KEY) load()
 })
 window.addEventListener('sections-updated', () => load())
+
+// BroadcastChannel support for instant cross-tab sync
+if (window.BroadcastChannel) {
+  try {
+    const bc = new BroadcastChannel('sections-sync')
+    bc.onmessage = (ev) => {
+      if (ev && ev.data === 'sections-updated') load()
+    }
+  } catch (e) {}
+}
 
 // also apply CSS vars whenever sections change (best-effort)
 window.addEventListener('storage', () => applyCssVars())

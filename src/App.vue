@@ -6,7 +6,7 @@
 </template>
 
 <script setup>
-// Czysta aplikacja bez nawigacji - wszystko w Gallery
+
 </script>
 
 <style>

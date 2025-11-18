@@ -137,12 +137,22 @@
 
           <div class="meta-right">
             <p>Podgląd kafelka (kliknij, aby ustawić punkt):</p>
-            <div class="preview-wrap" @click.stop="previewClick($event)">
+            <div class="preview-wrap landscape" @click.stop="previewClick($event)">
               <template v-if="isVideoPreview(selectedMetaName)">
-                <video :src="previewSrcFor(selectedMetaName)" controls muted loop playsinline class="preview-media"></video>
+                <video :src="previewSrcFor(selectedMetaName)" controls muted loop playsinline class="preview-media" style="object-fit:cover;width:100%;height:100%;"></video>
               </template>
               <template v-else>
-                <img :src="previewSrcFor(selectedMetaName)" alt="preview" class="preview-media" />
+                <img 
+                  :src="previewSrcFor(selectedMetaName)" 
+                  alt="preview" 
+                  class="preview-media" 
+                  :style="{
+                    objectFit: 'cover',
+                    width: '100%',
+                    height: '100%',
+                    objectPosition: (metadata[selectedMetaName]?.focalX != null ? (metadata[selectedMetaName].focalX + '% ' + (metadata[selectedMetaName]?.focalY != null ? metadata[selectedMetaName].focalY + '%' : '50%')) : '50% 50%')
+                  }"
+                />
               </template>
               <div v-if="metadata[selectedMetaName].focalX!=null" class="focal-dot" :style="{ left: metadata[selectedMetaName].focalX + '%', top: metadata[selectedMetaName].focalY + '%' }"></div>
             </div>
@@ -494,7 +504,8 @@ function saveGallerySequence() {
     localStorage.setItem(key, JSON.stringify(arr))
     // notify other windows/components
     try { window.dispatchEvent(new CustomEvent('gallery-updated')) } catch (e) {}
-    alert('Sekwencja galerii zapisana lokalnie')
+    // automatycznie publikuj manifest po zapisaniu sekwencji
+    setTimeout(() => publishManifest(), 100)
   } catch (e) { console.warn(e) }
 }
 
@@ -641,3 +652,39 @@ function removeFromMetadata(name) {
   localStorage.setItem(METADATA_KEY, JSON.stringify(metadata.value))
 }
 </script>
+
+<style scoped>
+.preview-wrap.landscape {
+  width: 320px;
+  aspect-ratio: 16/9;
+  background: #222;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  margin-bottom: 0.5rem;
+  box-shadow: 0 2px 8px #0002;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.preview-media {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  background: #222;
+  border-radius: 0;
+}
+.focal-dot {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  background: #e22;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 2;
+  box-shadow: 0 0 6px #0008;
+}
+</style>

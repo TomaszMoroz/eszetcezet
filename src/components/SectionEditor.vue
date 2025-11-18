@@ -227,34 +227,57 @@ function save() {
         const nodes = document.querySelectorAll(sel)
         nodes.forEach(n => {
           try {
+            // tło
             if (data.value[k] && data.value[k].bg) n.style.background = data.value[k].bg
             else n.style.removeProperty('background')
+            // font
             if (data.value[k] && data.value[k].font) n.style.fontFamily = data.value[k].font
             else n.style.removeProperty('font-family')
+            // kolor tekstu
             if (data.value[k] && data.value[k].textColor) n.style.color = data.value[k].textColor
             else n.style.removeProperty('color')
           } catch (e) {}
         })
       }
-      // if admin requested, also apply to media layer (e.g. .hero-media)
-      try {
-        const mediaMap = { hero: '.hero-media' }
-        if (data.value[k] && data.value[k].applyToMedia && mediaMap[k]) {
-          document.querySelectorAll(mediaMap[k]).forEach(m => {
-            try {
-              if (data.value[k] && data.value[k].bg) m.style.background = data.value[k].bg
-              else m.style.removeProperty('background')
-              if (data.value[k] && data.value[k].font) m.style.fontFamily = data.value[k].font
-              else m.style.removeProperty('font-family')
-              if (data.value[k] && data.value[k].textColor) m.style.color = data.value[k].textColor
-              else m.style.removeProperty('color')
-            } catch (e) {}
-          })
-        }
-      } catch (e) {}
+      // Specjalne przypadki: .hero-media (tło), .site-header (kolor tekstu w linkach)
+      if (k === 'hero' && data.value[k] && data.value[k].applyToMedia) {
+        document.querySelectorAll('.hero-media').forEach(m => {
+          try {
+            if (data.value[k].bg) m.style.background = data.value[k].bg
+            else m.style.removeProperty('background')
+          } catch (e) {}
+        })
+      }
+      if (k === 'navbar') {
+        document.querySelectorAll('.site-header .nav-link').forEach(l => {
+          try {
+            if (data.value[k] && data.value[k].textColor) l.style.color = data.value[k].textColor
+            else l.style.removeProperty('color')
+          } catch (e) {}
+        })
+      }
     } catch (e) {}
-    try { window.dispatchEvent(new CustomEvent('sections-updated')) } catch(e) {}
+    try {
+      window.dispatchEvent(new CustomEvent('sections-updated'))
+      // Broadcast do innych zakładek (BroadcastChannel działa cross-tab)
+      if (window.BroadcastChannel) {
+        try {
+          const bc = new BroadcastChannel('sections-sync')
+          bc.postMessage('sections-updated')
+          bc.close()
+        } catch (e) {}
+      }
+    } catch(e) {}
     alert('Sekcja zapisana lokalnie')
+// Odbiór broadcastu w tej zakładce (na wypadek, gdyby PA było otwarte w kilku)
+if (window.BroadcastChannel) {
+  try {
+    const bc = new BroadcastChannel('sections-sync')
+    bc.onmessage = (ev) => {
+      if (ev && ev.data === 'sections-updated') reloadData()
+    }
+  } catch (e) {}
+}
   } catch (e) { console.warn(e) }
 }
 

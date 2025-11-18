@@ -11,19 +11,39 @@
           </div>
           <button class="hamburger" @click="mobileOpen = !mobileOpen" aria-label="Toggle menu">☰</button>
           <nav :class="['main-nav', { open: mobileOpen }]">
-            <router-link to="/" class="nav-link" @click="mobileOpen = false">Home</router-link>
-            <router-link :to="{ path: '/', hash: '#works' }" class="nav-link" @click="mobileOpen = false">Portfolio</router-link>
-            <router-link :to="{ path: '/', hash: '#kontakt' }" class="nav-link" @click="mobileOpen = false">Kontakt</router-link>
+            <a href="#" class="nav-link" @click.prevent="scrollToSection('top')">Home</a>
+            <a href="#works" class="nav-link" @click.prevent="scrollToSection('works')">Portfolio</a>
+            <a href="#kontakt" class="nav-link" @click.prevent="scrollToSection('kontakt')">Kontakt</a>
           </nav>
     </div>
   </header>
 </template>
 
-    <script setup>
-    import { ref } from 'vue'
+<script setup>
+import { ref } from 'vue'
 
-    const mobileOpen = ref(false)
-    </script>
+const mobileOpen = ref(false)
+
+function scrollToSection(section) {
+  mobileOpen.value = false
+  let target
+  if (section === 'top') {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+    return
+  }
+  if (section === 'works') {
+    target = document.getElementById('works')
+  } else if (section === 'kontakt') {
+    // scroll to bottom of page
+    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
+    return
+  }
+  if (target) {
+    const y = target.getBoundingClientRect().top + window.scrollY - 20
+    window.scrollTo({ top: y, behavior: 'smooth' })
+  }
+}
+</script>
 
 <style scoped>
 .site-header {

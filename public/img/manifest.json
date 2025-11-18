@@ -1,8 +1,5 @@
 {
-  "generatedAt": "2025-11-10T10:45:56.642Z",
-  "files": [
-    "/img/1.jpg",
-    "/img/2.jpg",
+  "fileOrder": [
     "/img/dashboard/001_PPX_2894.JPG",
     "/img/dashboard/002_PIE_2198.JPG",
     "/img/dashboard/PPX_3633.JPG",
@@ -18,10 +15,12 @@
     "/videos/AuchanK-v2.1F-sklepie.mp4",
     "/videos/Timeline3 DziuV.mov"
   ],
-  "sequences": {
+  "gallerySequence": {
     "photos": [
       "/img/dashboard/001_PPX_2894.JPG",
-      "/img/dashboard/002_PIE_2198.JPG",
+      "/img/dashboard/PPX_3659.JPG",
+      "/img/dashboard/PZF_0577-EDIT.JPG",
+      "/img/dashboard/PZF_0292-EDIT-2.JPG",
       "/img/dashboard/PPX_3633.JPG"
     ],
     "videos": [
@@ -30,18 +29,25 @@
     ]
   },
   "metadata": {
-    "/img/dashboard/PPX_3659.JPG": {
-      "title": "PPX_3659.JPG",
+    "/img/dashboard/PPX_3633.JPG": {
+      "title": "PPX_3633.JPG",
       "ratio": "portrait",
       "tags": "",
-      "focalX": 54,
-      "focalY": 0,
+      "focalX": 58,
+      "focalY": 11
+    },
+    "/videos/AuchanK-v2.1F-sklepie.mp4": {
+      "title": "AuchanK-v2.1F-sklepie.mp4",
+      "ratio": "landscape",
+      "tags": "",
+      "focalX": 49,
+      "focalY": 27,
       "thumbnail": "",
       "description": "",
       "startTime": 0
     },
-    "/img/dashboard/PZF_3212-2.JPG": {
-      "title": "PZF_3212-2.JPG",
+    "/videos/Timeline3 DziuV.mov": {
+      "title": "Timeline3 DziuV.mov",
       "ratio": "landscape",
       "tags": "",
       "focalX": 50,
@@ -50,5 +56,57 @@
       "description": "",
       "startTime": 0
     }
-  }
+  },
+  "sections": {
+    "navbar": {
+      "bg": "",
+      "font": "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial",
+      "blocks": [],
+      "applyToMedia": false
+    },
+    "hero": {
+      "bg": "",
+      "font": "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial",
+      "blocks": [],
+      "applyToMedia": false
+    },
+    "gallery": {
+      "bg": "",
+      "font": "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial",
+      "blocks": [],
+      "applyToMedia": false
+    },
+    "info": {
+      "bg": "#080808",
+      "font": "Bison",
+      "blocks": [],
+      "applyToMedia": true,
+      "textColor": "#ecece9"
+    },
+    "footer": {
+      "bg": "#050505",
+      "font": "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial",
+      "blocks": [],
+      "applyToMedia": true,
+      "textColor": "#3d5cd6"
+    }
+  },
+  "theme": null,
+  "timestamp": "2025-11-18T09:08:24.528Z",
+  "files": [
+    "/img/dashboard/001_PPX_2894.JPG",
+    "/img/dashboard/002_PIE_2198.JPG",
+    "/img/dashboard/PPX_3633.JPG",
+    "/img/dashboard/PPX_3659.JPG",
+    "/img/dashboard/PZF_0292-EDIT-2.JPG",
+    "/img/dashboard/PZF_0577-EDIT.JPG",
+    "/img/dashboard/PZF_3212-2.JPG",
+    "/img/dashboard/PZF_6721.JPG",
+    "/img/dashboard/_PSP6619-Edit.JPG",
+    "/img/dashboard/_PZF9320.JPG",
+    "/img/graph/logo_bw.png",
+    "/img/manifest.json",
+    "/videos/AuchanK-v2.1F-sklepie.mp4",
+    "/videos/Timeline3 DziuV.mov"
+  ]
 }
