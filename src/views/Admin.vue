@@ -57,6 +57,7 @@
                   <span class="handle" aria-hidden>☰</span>
                   <span class="fname">{{ element.name }}</span>
                   <button class="btn small secondary" aria-label="Usuń {{ element.name }} z galerii" @click.stop="removeFromSequence(index)">Usuń z galerii</button>
+                  <button class="btn small" aria-label="Edytuj metadane {{ element.name }}" @click.stop="openMetaEditor(element.name)">Edytuj metadane</button>
                 </div>
               </template>
             </draggable>
@@ -200,6 +201,32 @@ const gallerySequenceVideos = ref([])
 const metadata = ref({})
 const selectedMetaName = ref(null)
 
+function openMetaEditor(name) {
+  if (!metadata.value[name]) {
+    metadata.value[name] = {
+      title: '',
+      ratio: 'landscape',
+      tags: '',
+      description: '',
+      thumbnail: '',
+      startTime: null,
+      focalX: 50,
+      focalY: 50
+    }
+  }
+  selectedMetaName.value = name
+}
+
+// Zapisz i opublikuj metadane dla wybranego pliku
+async function publishMetadata(name) {
+  if (!name) return
+  // Zapisz metadane do localStorage
+  try {
+    localStorage.setItem(METADATA_KEY, JSON.stringify(metadata.value))
+  } catch (e) { console.warn(e) }
+  // Opublikuj cały manifest (z nowymi metadanymi)
+  await publishChanges()
+}
 const METADATA_KEY = 'gallery-metadata'
 
 const GALLERY_SEQUENCE_KEY_PHOTOS = 'gallery-sequence:photos'

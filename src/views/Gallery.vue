@@ -57,20 +57,21 @@
         @click="openLightbox(item)"
       >
         <img 
-          v-if="currentMode === 'photos'" 
-          :src="item.src" 
+          v-if="currentMode === 'photos'"
+          :src="item.thumbnail || item.src"
           :alt="item.title"
           loading="lazy"
           :style="{ objectPosition: (item.focalX!=null ? (item.focalX + '% ' + (item.focalY!=null ? item.focalY + '%' : '50%')) : '50% 50%'), objectFit: 'cover' }"
         />
         <div v-else class="video-preview">
-          <div class="play-icon">▶</div>
           <template v-if="item.thumbnail">
-            <img :src="item.thumbnail" :alt="item.title" />
+            <img :src="item.thumbnail" :alt="item.title" :style="{ objectPosition: (item.focalX!=null ? (item.focalX + '% ' + (item.focalY!=null ? item.focalY + '%' : '50%')) : '50% 50%'), objectFit: 'cover', width: '100%', height: 'auto', display: 'block', opacity: 0.9 }" />
+            <div class="play-icon">▶</div>
           </template>
           <template v-else>
             <!-- lazy-load preview video via data-src; IntersectionObserver will set src when visible -->
             <video class="masonry-video" :data-src="item.src" muted playsinline preload="metadata" style="width:100%;height:auto;display:block;opacity:0.9"></video>
+            <div class="play-icon">▶</div>
           </template>
           <span v-if="item.duration" class="video-duration">{{ formatDuration(item.duration) }}</span>
         </div>
@@ -90,6 +91,7 @@
           v-if="currentMode === 'photos'"
           :src="lightboxItem.src" 
           :alt="lightboxItem.title"
+          :style="{ objectPosition: (lightboxItem.focalX!=null ? (lightboxItem.focalX + '% ' + (lightboxItem.focalY!=null ? lightboxItem.focalY + '%' : '50%')) : '50% 50%'), objectFit: 'cover' }"
         />
         <video 
           v-else
@@ -406,8 +408,8 @@ const loadGalleryFromManifest = async (force = false) => {
     lastManifestTimestamp = data.timestamp
     syncStatus.value = ''
     // Build photos/videos arrays
-    const photos = []
-    const videos = []
+    let photos = []
+    let videos = []
     data.files.forEach((f, idx) => {
       if ((f.startsWith('/img/dashboard/') || f.startsWith('img/dashboard/')) && /\.(jpe?g|png|webp|avif|gif|heic|bmp)$/i.test(f)) {
         const name = f.split('/').pop()
@@ -424,6 +426,53 @@ const loadGalleryFromManifest = async (force = false) => {
         })()
       }
     })
+    // Merge metadata from manifest.json into photos/videos before applying sequence
+    if (data.metadata && typeof data.metadata === 'object') {
+      const byBase = {}
+      Object.entries(data.metadata).forEach(([k, v]) => {
+        const base = k.split('/').pop().toLowerCase()
+        byBase[base] = v
+        byBase[k.toLowerCase()] = v
+      })
+      photos = photos.map(item => {
+        const srcBase = item.src ? item.src.split('/').pop().toLowerCase() : ''
+        const thumbBase = item.thumbnail ? item.thumbnail.split('/').pop().toLowerCase() : ''
+        const match = byBase[srcBase] || byBase[thumbBase] || byBase[item.title && item.title.toLowerCase()]
+        if (match) {
+          return {
+            ...item,
+            title: match.title || item.title,
+            ratio: match.ratio || item.ratio,
+            tags: match.tags ? (Array.isArray(match.tags) ? match.tags : String(match.tags).split(',').map(t=>t.trim()).filter(Boolean)) : item.tags || [],
+            focalX: (match.focalX != null ? Number(match.focalX) : (item.focalX != null ? item.focalX : 50)),
+            focalY: (match.focalY != null ? Number(match.focalY) : (item.focalY != null ? item.focalY : 50)),
+            thumbnail: match.thumbnail || item.thumbnail || '',
+            description: match.description || item.description || '',
+            startTime: (match.startTime != null ? Number(match.startTime) : (item.startTime != null ? item.startTime : 0))
+          }
+        }
+        return item
+      })
+      videos = videos.map(item => {
+        const srcBase = item.src ? item.src.split('/').pop().toLowerCase() : ''
+        const thumbBase = item.thumbnail ? item.thumbnail.split('/').pop().toLowerCase() : ''
+        const match = byBase[srcBase] || byBase[thumbBase] || byBase[item.title && item.title.toLowerCase()]
+        if (match) {
+          return {
+            ...item,
+            title: match.title || item.title,
+            ratio: match.ratio || item.ratio,
+            tags: match.tags ? (Array.isArray(match.tags) ? match.tags : String(match.tags).split(',').map(t=>t.trim()).filter(Boolean)) : item.tags || [],
+            focalX: (match.focalX != null ? Number(match.focalX) : (item.focalX != null ? item.focalX : 50)),
+            focalY: (match.focalY != null ? Number(match.focalY) : (item.focalY != null ? item.focalY : 50)),
+            thumbnail: match.thumbnail || item.thumbnail || '',
+            description: match.description || item.description || '',
+            startTime: (match.startTime != null ? Number(match.startTime) : (item.startTime != null ? item.startTime : 0))
+          }
+        }
+        return item
+      })
+    }
     allPhotos.value = photos
     allVideos.value = videos
     // Only show photos that are in gallerySequence.photos
@@ -812,7 +861,14 @@ watch(currentMode, (n) => {
   align-items: center;
 }
 
-.lightbox-content img,
+.lightbox-content img {
+  max-width: 95vw;
+  max-height: 85vh;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 8px;
+}
 .lightbox-content video {
   max-width: 95vw;
   max-height: 85vh;
