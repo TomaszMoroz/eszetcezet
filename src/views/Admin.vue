@@ -435,9 +435,10 @@ async function publishChanges() {
   // build payload
   let themeObj = null;
   try { themeObj = JSON.parse(localStorage.getItem('site-theme') || '{}') } catch(e){ themeObj = {} }
-  if (!themeObj || typeof themeObj !== 'object' || Array.isArray(themeObj) || Object.keys(themeObj).length === 0) {
-    // fallback: try to build from current editor state if available
-    themeObj = { colors: {}, typography: {} };
+  // Ensure themeObj is a valid object with at least one color and one typography entry
+  if (!themeObj || typeof themeObj !== 'object' || Array.isArray(themeObj) || Object.keys(themeObj).length === 0 || !themeObj.colors || !themeObj.typography || Object.keys(themeObj.colors).length === 0 || Object.keys(themeObj.typography).length === 0) {
+    alert('Brak poprawnego motywu do publikacji. Najpierw zapisz motyw w edytorze!')
+    return
   }
   const payload = {
     files: Array.isArray(fileOrder.value) ? fileOrder.value.map(f => f.name) : [],

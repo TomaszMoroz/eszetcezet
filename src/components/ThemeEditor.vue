@@ -2,10 +2,12 @@
   <div class="theme-editor">
     <h3>Edytor motywu</h3>
     <div class="fields">
-      <div v-for="item in items" :key="item.var" class="field">
-        <label>{{ item.label }}</label>
-        <input type="color" v-model="item.value" @input="updateVar(item.var, item.value)" />
-        <input class="hex" type="text" v-model="item.value" @change="updateVar(item.var, item.value)" />
+      <div v-for="item in items" :key="item.var" class="field color-field">
+        <label :for="item.var">{{ item.label }}</label>
+        <div class="color-picker-row">
+          <input :id="item.var" type="color" v-model="item.value" @input="updateVar(item.var, item.value)" />
+          <span class="color-value">{{ item.value }}</span>
+        </div>
       </div>
     </div>
 
@@ -85,18 +87,61 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
+import { colorPresets, fontPresets } from './ThemePresets.js'
+
+// Section definitions (example sections, adjust as needed)
+const sections = ref([
+  { key: 'header', label: 'Nagłówek' },
+  { key: 'body', label: 'Treść' },
+  { key: 'footer', label: 'Stopka' }
+])
+
+const selectedSection = ref(sections.value[0]?.key || '')
+
+// Project fonts list
+const projectFonts = ref([])
+
+// Typography config per section
+const typography = ref({
+  header: { font: '', size: 24, weight: 700, color: '#111111' },
+  body: { font: '', size: 16, weight: 400, color: '#222222' },
+  footer: { font: '', size: 14, weight: 400, color: '#333333' }
+})
+
+// Helper for preview label
+const sectionsByKey = computed(() => {
+  const map = {}
+  sections.value.forEach(s => { map[s.key] = s })
+  return map
+})
 
 const VAR_KEY = 'site-theme'
 
 const defaults = [
-  { var: '--color-bg', label: 'Tło', value: '' },
-  { var: '--color-text', label: 'Tekst', value: '' },
-  { var: '--color-header-bg', label: 'Nagłówek', value: '' },
-  { var: '--color-accent', label: 'Accent', value: '' },
-  { var: '--color-section-dark', label: 'Sekcja (ciemna)', value: '' },
-  { var: '--color-section-light', label: 'Sekcja (jasna)', value: '' },
-  { var: '--color-text-dark', label: 'Tekst (ciemny)', value: '' },
+  { var: '--color-bg', label: 'Tło', value: '#ffffff' },
+  { var: '--color-text', label: 'Tekst', value: '#111111' },
+  { var: '--color-header-bg', label: 'Nagłówek', value: '#222222' },
+  { var: '--color-accent', label: 'Accent', value: '#ff6600' },
+  { var: '--color-section-dark', label: 'Sekcja (ciemna)', value: '#333333' },
+  { var: '--color-section-light', label: 'Sekcja (jasna)', value: '#eeeeee' },
+  { var: '--color-text-dark', label: 'Tekst (ciemny)', value: '#444444' },
 ]
+// Update CSS variable when color changes
+function updateVar(variable, value) {
+  // Ensure value is valid hex color
+  if (/^#[0-9A-Fa-f]{6}$/.test(value)) {
+    document.documentElement.style.setProperty(variable, value)
+  }
+}
+
+// Apply theme colors to document
+function applyTheme(colorsObj) {
+  Object.entries(colorsObj).forEach(([variable, value]) => {
+    if (/^#[0-9A-Fa-f]{6}$/.test(value)) {
+      document.documentElement.style.setProperty(variable, value)
+    }
+  })
+}
 
 const items = ref(JSON.parse(JSON.stringify(defaults)))
 
@@ -109,88 +154,23 @@ const systemFonts = [
   { family: "Playfair Display, serif", label: 'Playfair Display (serif)' },
 ]
 
-// projectFonts will be discovered from loaded stylesheets (@font-face rules)
-const projectFonts = ref([])
-
-const sections = [
-  { key: 'base', label: 'Tekst podstawowy (body)' },
-  { key: 'heading', label: 'Nagłówki (h1,h2)' },
-  { key: 'caption', label: 'Podpisy/mały tekst' },
-  { key: 'nav', label: 'Nawigacja / przyciski' },
-]
-
-const sectionsByKey = Object.fromEntries(sections.map(s => [s.key, s]))
-
-const selectedSection = ref(sections[0].key)
-
-const typography = ref({})
-function ensureTypographyDefaults() {
-  sections.forEach(s => {
-    if (!typography.value[s.key]) {
-      const defaultFont = (projectFonts.value && projectFonts.value[0] && projectFonts.value[0].family) || (systemFonts && systemFonts[0] && systemFonts[0].family) || 'system-ui'
-      typography.value[s.key] = { font: defaultFont, size: (s.key === 'heading' ? 28 : s.key === 'caption' ? 12 : 16), weight: 400, color: readCssVar('--color-text') || '#111' }
-    }
-  })
-}
-
-// initialize defaults synchronously so template bindings don't access undefined
-ensureTypographyDefaults()
-
-function readCssVar(name) {
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || ''
-}
-
-function applyTheme(obj) {
-  Object.entries(obj || {}).forEach(([k, v]) => {
-    try { document.documentElement.style.setProperty(k, v) } catch (e) {}
-  })
-}
-
-onMounted(() => {
-  // initialize current values from computed styles or saved storage
-  const saved = JSON.parse(localStorage.getItem(VAR_KEY) || 'null')
-  if (saved) {
-    // apply saved first
-    applyTheme(saved.colors || saved)
-    if (saved.typography) {
-      typography.value = saved.typography
-    }
-  }
+// Preset handlers
+function applyColorPreset(preset) {
+  if (!preset || !preset.colors) return
   items.value.forEach(i => {
-    const val = (saved && saved.colors && saved.colors[i.var]) || readCssVar(i.var) || ''
-    i.value = val
-  })
-  ensureTypographyDefaults()
-  // apply typography to document
-  Object.keys(typography.value).forEach(k => applyTypography(k))
-  // detect @font-face rules in stylesheets and populate projectFonts
-  try {
-    const found = new Set()
-    for (const ss of Array.from(document.styleSheets || [])) {
-      let rules
-      try { rules = ss.cssRules } catch (e) { continue }
-      if (!rules) continue
-      for (const r of Array.from(rules)) {
-        // CSSFontFaceRule type
-        if (r.type === CSSRule.FONT_FACE_RULE || (r.constructor && r.constructor.name === 'CSSFontFaceRule')) {
-          const fam = (r.style && r.style.getPropertyValue('font-family')) || r.cssText.match(/font-family\s*:\s*([^;\n]+)/i)
-          let famName = ''
-          if (typeof fam === 'string') famName = fam.replace(/['"]+/g, '').trim()
-          else if (Array.isArray(fam)) famName = String(fam[1] || '').replace(/['"]+/g,'').trim()
-          if (famName) found.add(famName)
-        }
-      }
+    if (preset.colors[i.var]) {
+      i.value = preset.colors[i.var]
+      updateVar(i.var, i.value)
     }
-    projectFonts.value = Array.from(found).map(f => ({ family: f, label: f }))
-  } catch (e) { console.warn('Could not detect project fonts', e) }
-})
-
-function updateVar(name, value) {
-  // ensure hex trimmed
-  const v = (value || '').trim()
-  document.documentElement.style.setProperty(name, v)
+  })
 }
-
+function applyFontPreset(preset) {
+  if (!preset || !preset.font) return
+  Object.keys(typography.value).forEach(k => {
+    typography.value[k].font = preset.font
+    applyTypography(k)
+  })
+}
 function applyTypography(sectionKey) {
   const cfg = typography.value[sectionKey]
   if (!cfg) return
@@ -200,18 +180,56 @@ function applyTypography(sectionKey) {
     document.documentElement.style.setProperty(`--font-${sectionKey}-size`, cfg.size + 'px')
     document.documentElement.style.setProperty(`--font-${sectionKey}-weight`, String(cfg.weight))
     document.documentElement.style.setProperty(`--color-${sectionKey}-text`, cfg.color)
+    // Powiązanie dla footer: kolor tekstu i tła
+    if (sectionKey === 'footer') {
+      document.documentElement.style.setProperty('--section-footer-text-color', cfg.color)
+      // Jeśli chcesz dodać wybór tła dla stopki, możesz dodać input w ThemeEditor i ustawić:
+      // document.documentElement.style.setProperty('--section-footer-bg', wybranyKolorTla)
+    }
   } catch (e) {}
 }
 
 function save() {
   const colorsObj = {}
   items.value.forEach(i => colorsObj[i.var] = i.value)
-  const obj = { colors: colorsObj, typography: typography.value }
+  // Deep clone typography to avoid Vue reactivity issues
+  const typogObj = JSON.parse(JSON.stringify(typography.value))
+  const obj = { colors: colorsObj, typography: typogObj }
+  // Validate: ensure at least one color and one typography entry
+  if (Object.keys(colorsObj).length === 0 || Object.keys(typogObj).length === 0) {
+    alert('Błąd: motyw nie zawiera kolorów lub typografii!')
+    return
+  }
   localStorage.setItem(VAR_KEY, JSON.stringify(obj))
   // re-apply to be safe
   applyTheme(colorsObj)
-  Object.keys(typography.value).forEach(k => applyTypography(k))
-  alert('Motyw zapisany lokalnie')
+  Object.keys(typogObj).forEach(k => applyTypography(k))
+
+  // --- Automatyczna publikacja motywu do manifest.json ---
+  try {
+    const manifestUrl = '/img/manifest.json'
+    fetch(manifestUrl + '?t=' + Date.now())
+      .then(res => res.json())
+      .then(manifest => {
+        // Zbuduj pełny manifest z wymaganymi polami
+        const newManifest = {
+          files: Array.isArray(manifest.files) ? manifest.files : [],
+          gallerySequence: manifest.gallerySequence || { photos: [], videos: [] },
+          metadata: typeof manifest.metadata === 'object' ? manifest.metadata : {},
+          sections: typeof manifest.sections === 'object' ? manifest.sections : {},
+          theme: obj,
+          timestamp: new Date().toISOString()
+        }
+        fetch('http://localhost:3000/api/manifest', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newManifest)
+        })
+        .then(r => r.ok ? alert('Motyw opublikowany!') : r.text().then(txt => alert('Błąd publikacji: ' + txt)))
+        .catch(e => alert('Błąd publikacji: ' + e.message))
+      })
+      .catch(e => alert('Błąd pobierania manifestu: ' + e.message))
+  } catch (e) { alert('Błąd automatycznej publikacji: ' + e.message) }
 }
 
 function reset() {
@@ -291,11 +309,51 @@ function copyFontFaceCss() {
 <style scoped>
 .theme-editor { padding: 1rem; background: var(--color-section-dark); color: var(--color-text); border-radius: 8px; }
 .theme-editor h3 { margin-top: 0; }
-.fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.75rem; }
-.field { display: flex; gap: 0.5rem; align-items: center; }
-.field label { min-width: 120px; font-size: 0.9rem; color: rgba(255,255,255,0.9) }
-.field input[type="color"] { width: 44px; height: 30px; border: none; padding: 0; }
-.field .hex { flex: 1; padding: 0.35rem 0.5rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.02); color: var(--color-text) }
+/* Color fields UX improvements */
+.fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+.color-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  background: rgba(255,255,255,0.03);
+  border-radius: 8px;
+  padding: 1rem 1rem 0.75rem 1rem;
+  box-shadow: 0 1px 4px #0001;
+}
+.color-field label {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--color-text, #fff);
+  margin-bottom: 0.25rem;
+}
+.color-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.color-picker-row input[type="color"] {
+  width: 44px;
+  height: 32px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: 6px;
+  box-shadow: 0 0 0 1px #0002;
+}
+.color-value {
+  font-family: monospace;
+  font-size: 0.98rem;
+  color: #aaa;
+  background: #222;
+  padding: 0.2rem 0.6rem;
+  border-radius: 6px;
+  letter-spacing: 0.5px;
+}
 .actions { margin-top: 1rem; display:flex; gap:0.5rem; }
 .actions button { padding: 0.5rem 1rem; border-radius:6px; border:1px solid rgba(255,255,255,0.06); background: transparent; color: var(--color-text); cursor:pointer }
 .actions button:first-child { background: var(--color-accent); color: #fff; border-color: var(--color-accent) }
