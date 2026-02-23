@@ -433,6 +433,12 @@ async function publishChanges() {
   const ep = 'http://localhost:3000/api/manifest'
   if (!ep) return alert('Podaj endpoint publikacji')
   // build payload
+  let themeObj = null;
+  try { themeObj = JSON.parse(localStorage.getItem('site-theme') || '{}') } catch(e){ themeObj = {} }
+  if (!themeObj || typeof themeObj !== 'object' || Array.isArray(themeObj) || Object.keys(themeObj).length === 0) {
+    // fallback: try to build from current editor state if available
+    themeObj = { colors: {}, typography: {} };
+  }
   const payload = {
     files: Array.isArray(fileOrder.value) ? fileOrder.value.map(f => f.name) : [],
     gallerySequence: {
@@ -441,7 +447,7 @@ async function publishChanges() {
     },
     metadata: (metadata.value && typeof metadata.value === 'object') ? metadata.value : {},
     sections: (() => { try { const s = JSON.parse(localStorage.getItem('site-sections')||'{}'); return (s && typeof s === 'object') ? s : {}; } catch(e){return {}} })(),
-    theme: (() => { try { return JSON.parse(localStorage.getItem('site-theme')||'null') } catch(e){return null} })(),
+    theme: themeObj,
     timestamp: new Date().toISOString()
   }
   console.log('publishChanges payload', JSON.stringify(payload, null, 2))
@@ -510,6 +516,8 @@ function clearGallerySequence() {
 // Publish a manifest (files, sequences and metadata) to a central endpoint
 async function publishManifest() {
   try {
+    let themeObj = null;
+    try { themeObj = JSON.parse(localStorage.getItem('site-theme') || 'null') } catch(e){ themeObj = null }
     const manifest = {
       files: fileOrder.value.map(f => f.name),
       gallerySequence: {
@@ -518,7 +526,7 @@ async function publishManifest() {
       },
       metadata: metadata.value || {},
       sections: (() => { try { return JSON.parse(localStorage.getItem('site-sections')||'{}') } catch(e){return {}} })(),
-      theme: (() => { try { return JSON.parse(localStorage.getItem('site-theme')||'null') } catch(e){return null} })(),
+      theme: themeObj,
       timestamp: new Date().toISOString()
     }
     console.log('publishManifest payload', JSON.stringify(manifest, null, 2))

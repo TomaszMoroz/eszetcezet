@@ -532,6 +532,41 @@ onMounted(() => {
   // apply saved gallery sequence if present
   // ensure we load manifest first, then apply any saved sequence (so matching uses manifest items)
   ;(async () => {
+    let themeObj = null
+    try {
+      const base = (import.meta.env.BASE_URL ?? '/')
+      const manifestUrl = base.replace(/\/?$/, '/') + 'img/manifest.json'
+      const res = await fetch(manifestUrl)
+      if (res.ok) {
+        const data = await res.json()
+        if (data && data.theme) {
+          themeObj = data.theme
+        }
+      }
+    } catch (e) {}
+    // Apply theme if present
+    if (themeObj) {
+      // Apply color variables
+      if (themeObj.colors && typeof themeObj.colors === 'object') {
+        Object.entries(themeObj.colors).forEach(([k, v]) => {
+          try { document.documentElement.style.setProperty(k, v) } catch (e) {}
+        })
+      }
+      // Apply typography variables
+      if (themeObj.typography && typeof themeObj.typography === 'object') {
+        Object.keys(themeObj.typography).forEach(sectionKey => {
+          const cfg = themeObj.typography[sectionKey]
+          if (cfg) {
+            try {
+              document.documentElement.style.setProperty(`--font-${sectionKey}`, cfg.font)
+              document.documentElement.style.setProperty(`--font-${sectionKey}-size`, cfg.size + 'px')
+              document.documentElement.style.setProperty(`--font-${sectionKey}-weight`, String(cfg.weight))
+              document.documentElement.style.setProperty(`--color-${sectionKey}-text`, cfg.color)
+            } catch (e) {}
+          }
+        })
+      }
+    }
     try {
       await loadGalleryFromManifest()
     } catch (e) {}
