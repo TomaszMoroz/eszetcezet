@@ -396,11 +396,16 @@ const loadGalleryFromManifest = async (force = false) => {
     const res = await fetch(manifestUrl)
     if (!res.ok) return
     const data = await res.json()
-    if (!data || !Array.isArray(data.files) || !data.files.length) return
+    if (!data || !Array.isArray(data.files) || !data.gallerySequence || !Array.isArray(data.gallerySequence.photos)) {
+      allPhotos.value = []
+      allVideos.value = []
+      galleryData.value = []
+      return
+    }
     if (!force && lastManifestTimestamp === data.timestamp) return // no change
     lastManifestTimestamp = data.timestamp
     syncStatus.value = ''
-    // Pokazuj TYLKO zdjęcia z /img/dashboard/ i filmy z /videos/ (spójnie z PA)
+    // Build photos/videos arrays
     const photos = []
     const videos = []
     data.files.forEach((f, idx) => {
@@ -421,15 +426,15 @@ const loadGalleryFromManifest = async (force = false) => {
     })
     allPhotos.value = photos
     allVideos.value = videos
-    // set galleryData to current mode
-    // --- PATCH: Use manifest.json gallerySequence as default if no localStorage sequence ---
-    let photoSeq = (data.gallerySequence && Array.isArray(data.gallerySequence.photos) && data.gallerySequence.photos.length)
-      ? data.gallerySequence.photos : null
-    if (photoSeq) {
-      galleryData.value = photos
-      applyGallerySequence(photoSeq, true)
+    // Only show photos that are in gallerySequence.photos
+    const photoSeq = data.gallerySequence.photos
+    if (photoSeq && photoSeq.length) {
+      // Filter photos to only those in the sequence
+      const seqBasenames = photoSeq.map(s => s.split('/').pop().toLowerCase())
+      const filtered = photos.filter(p => seqBasenames.includes(p.src.split('/').pop().toLowerCase()))
+      galleryData.value = filtered
     } else {
-      galleryData.value = photos
+      galleryData.value = []
     }
     // videos: unchanged
   } catch (e) {
