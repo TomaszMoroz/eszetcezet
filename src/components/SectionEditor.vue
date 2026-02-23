@@ -10,12 +10,12 @@
     <div class="controls">
 
       <label>Kolor tła:
-        <input type="color" v-model="cfg.bg" @input="applyBg" />
+        <input type="color" :value="cfg.bg || '#222222'" @input="e => { cfg.bg = e.target.value; applyBg(); }" />
         <input class="hex" type="text" v-model="cfg.bg" @change="applyBg" />
       </label>
 
       <label>Kolor tekstu:
-        <input type="color" v-model="cfg.textColor" @input="applyTextColor" />
+        <input type="color" :value="cfg.textColor || '#222222'" @input="e => { cfg.textColor = e.target.value; applyTextColor(); }" />
         <input class="hex" type="text" v-model="cfg.textColor" @change="applyTextColor" />
       </label>
 

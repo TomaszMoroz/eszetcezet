@@ -41,43 +41,29 @@
         <div class="files-col">
           <h3>Pliki na serwerze</h3>
           <div class="file-list">
-            <draggable v-model="draggableFileOrder" item-key="name">
-              <template #item="{element}">
-                <div class="file-tile" role="group" :aria-label="`file ${element.name}`">
-                  <span class="handle" aria-hidden>☰</span>
-                  <span class="fname">{{ element.name }}</span>
-                  <button class="btn small secondary" aria-label="Dodaj {{ element.name }} do sekwencji" @click.stop="addToSequence(element)">Dodaj</button>
-                </div>
-              </template>
-            </draggable>
-          </div>
-          <div class="file-actions">
-            <button class="btn" @click="saveFileOrder">Zapisz kolejność plików</button>
-            <button class="btn" @click="applyFileOrder">Zastosuj kolejność do galerii</button>
+            <div v-for="element in draggableFileOrder" :key="element.name" class="file-tile" role="group" :aria-label="`file ${element.name}`">
+              <span class="fname">{{ element.name }}</span>
+              <button class="btn small secondary" aria-label="Dodaj {{ element.name }} do galerii" @click.stop="addToSequence(element)">Dodaj do galerii</button>
+            </div>
           </div>
         </div>
 
         <div class="seq-col">
-          <h3>Gallery Sequence (kolejność galerii)</h3>
+          <h3>Kolejność galerii</h3>
           <div class="sequence-list">
             <draggable v-model="gallerySequence" item-key="name">
               <template #item="{element, index}">
                 <div class="file-tile" role="group" :aria-label="`sequence ${element.name}`">
                   <span class="handle" aria-hidden>☰</span>
                   <span class="fname">{{ element.name }}</span>
-                  <div>
-                    <button class="btn small" aria-label="Edytuj {{ element.name }}" @click.stop="selectSequenceItemByName(element.name)">Edytuj</button>
-                    <button class="btn small secondary" aria-label="Usuń {{ element.name }} z sekwencji" @click.stop="removeFromSequence(index)">Usuń</button>
-                  </div>
+                  <button class="btn small secondary" aria-label="Usuń {{ element.name }} z galerii" @click.stop="removeFromSequence(index)">Usuń z galerii</button>
                 </div>
               </template>
             </draggable>
           </div>
           <div class="file-actions">
-            <button class="btn" @click="saveGallerySequence">Zapisz sekwencję</button>
-            <button class="btn" @click="applyGallerySequence">Zastosuj sekwencję w galerii</button>
-            <button class="btn small secondary" @click="clearGallerySequence">Wyczyść</button>
-            <button class="btn small" @click="publishManifest">Publikuj manifest</button>
+            <button class="btn" @click="publishGallerySequence">Zapisz i opublikuj galerię</button>
+            <button class="btn small secondary" @click="clearGallerySequence">Wyczyść galerię</button>
           </div>
         </div>
       </div>
@@ -129,7 +115,7 @@
             </fieldset>
 
             <div class="file-actions">
-              <button class="btn" @click="saveMetadata">Zapisz metadane</button>
+              <button class="btn" @click="publishMetadata(selectedMetaName)">Zapisz i opublikuj metadane</button>
               <button class="btn small secondary" @click="removeFromMetadata(selectedMetaName)">Usuń metadane</button>
               <button class="btn small secondary" @click="selectedMetaName = null">Zamknij</button>
             </div>
@@ -348,42 +334,13 @@ async function loadManifest() {
 
 function saveFileOrder() {
   try {
+    // Zapisz tylko do localStorage, nie wysyłaj fileOrder na serwer
     const arr = fileOrder.value.map(f => f.name)
     localStorage.setItem(FILE_ORDER_KEY, JSON.stringify(arr))
     alert('Kolejność plików zapisana lokalnie')
   } catch (e) { console.warn(e) }
 }
 
-function applyFileOrder() {
-  // Reorder items based on file names contained in thumb paths or title
-  const order = fileOrder.value.map(f => f.name)
-  // Helper: basename
-  const basename = (p) => {
-    if (!p) return ''
-    const segs = p.split('/')
-    return segs[segs.length-1]
-  }
-
-  const reordered = []
-  const remaining = [...items.value]
-  order.forEach(fname => {
-    const targetBase = basename(fname).toLowerCase()
-    const idx = remaining.findIndex(it => {
-      const tf = basename(it.thumb).toLowerCase()
-      if (tf && tf === targetBase) return true
-      if (it.title && it.title.toLowerCase().includes(targetBase)) return true
-      return false
-    })
-    if (idx > -1) {
-      reordered.push(remaining.splice(idx,1)[0])
-    }
-  })
-  // append leftover items
-  reordered.push(...remaining)
-  // replace items
-  items.value = reordered
-  alert('Galeria zaktualizowana zgodnie z zapisanym porządkiem nazw')
-}
 
 onMounted(() => {
   loadManifest()
@@ -422,10 +379,15 @@ onMounted(() => {
 })
 
 // publish UI state
-const publishEndpoint = ref(localStorage.getItem(PUBLISH_ENDPOINT_KEY) || '/api/manifest')
+const publishEndpoint = ref('http://localhost:3000/api/manifest')
 const publishToken = ref(localStorage.getItem(PUBLISH_TOKEN_KEY) || '')
 const lastPublishedAt = ref(localStorage.getItem(LAST_PUBLISHED_KEY) || '')
 
+function publishGallerySequence() {
+  // Zapisz sekwencję galerii i opublikuj manifest
+  saveGallerySequence();
+  publishChanges();
+}
 const metadataCount = computed(() => Object.keys(metadata.value || {}).length)
 const sectionsCount = computed(() => {
   try { const s = JSON.parse(localStorage.getItem('site-sections')||'{}'); return Object.keys(s||{}).length } catch(e){return 0}
@@ -441,20 +403,21 @@ function savePublishSettings() {
 }
 
 async function publishChanges() {
-  const ep = (publishEndpoint.value || '').trim()
+  const ep = 'http://localhost:3000/api/manifest'
   if (!ep) return alert('Podaj endpoint publikacji')
   // build payload
   const payload = {
-    fileOrder: fileOrder.value.map(f => f.name),
+    files: Array.isArray(fileOrder.value) ? fileOrder.value.map(f => f.name) : [],
     gallerySequence: {
-      photos: (gallerySequencePhotos.value || []).map(f => f.name || f),
-      videos: (gallerySequenceVideos.value || []).map(f => f.name || f)
+      photos: Array.isArray(gallerySequencePhotos.value) ? gallerySequencePhotos.value.map(f => f.name || f) : [],
+      videos: Array.isArray(gallerySequenceVideos.value) ? gallerySequenceVideos.value.map(f => f.name || f) : []
     },
-    metadata: metadata.value || {},
-    sections: (() => { try { return JSON.parse(localStorage.getItem('site-sections')||'{}') } catch(e){return {}} })(),
+    metadata: (metadata.value && typeof metadata.value === 'object') ? metadata.value : {},
+    sections: (() => { try { const s = JSON.parse(localStorage.getItem('site-sections')||'{}'); return (s && typeof s === 'object') ? s : {}; } catch(e){return {}} })(),
     theme: (() => { try { return JSON.parse(localStorage.getItem('site-theme')||'null') } catch(e){return null} })(),
     timestamp: new Date().toISOString()
   }
+  console.log('publishChanges payload', JSON.stringify(payload, null, 2))
 
   try {
     const headers = { 'Content-Type': 'application/json' }
@@ -516,31 +479,27 @@ function clearGallerySequence() {
   localStorage.removeItem(key)
 }
 
-function applyGallerySequence() {
-  // Save first
-  saveGallerySequence()
-  // Notifying user: Gallery.vue will pick up the sequence on reload or on mount
-  try { window.dispatchEvent(new CustomEvent('gallery-updated')) } catch (e) {}
-  alert('Sekwencja zapisana. Galeria zostanie zaktualizowana automatycznie.')
-}
 
 // Publish a manifest (files, sequences and metadata) to a central endpoint
 async function publishManifest() {
   try {
     const manifest = {
-      generatedAt: new Date().toISOString(),
       files: fileOrder.value.map(f => f.name),
-      sequences: {
+      gallerySequence: {
         photos: gallerySequencePhotos.value.map(f => f.name),
         videos: gallerySequenceVideos.value.map(f => f.name)
       },
-      metadata: metadata.value || {}
+      metadata: metadata.value || {},
+      sections: (() => { try { return JSON.parse(localStorage.getItem('site-sections')||'{}') } catch(e){return {}} })(),
+      theme: (() => { try { return JSON.parse(localStorage.getItem('site-theme')||'null') } catch(e){return null} })(),
+      timestamp: new Date().toISOString()
     }
+    console.log('publishManifest payload', JSON.stringify(manifest, null, 2))
 
     const headers = { 'Content-Type': 'application/json' }
     if (ADMIN_TOKEN) headers['X-ADMIN-TOKEN'] = ADMIN_TOKEN
 
-    const res = await fetch(PUBLISH_URL, { method: 'POST', headers, body: JSON.stringify(manifest) })
+    const res = await fetch('http://localhost:3000/api/manifest', { method: 'POST', headers, body: JSON.stringify(manifest) })
     if (!res.ok) {
       const txt = await res.text().catch(()=>res.statusText)
       throw new Error(`Publish failed: ${res.status} ${txt}`)
@@ -554,16 +513,6 @@ async function publishManifest() {
   }
 }
 
-function selectSequenceItemByName(name) {
-  selectedMetaName.value = name
-  if (!metadata.value[name]) {
-    metadata.value[name] = { title: name.split('/').pop(), ratio: 'landscape', tags: '', focalX: 50, focalY: 50, thumbnail: '', description: '', startTime: 0 }
-  } else {
-    // ensure focal defaults exist
-    if (metadata.value[name].focalX == null) metadata.value[name].focalX = 50
-    if (metadata.value[name].focalY == null) metadata.value[name].focalY = 50
-  }
-}
 
 function previewSrcFor(name) {
   // name is often the path from manifest (/img/...), if so return it directly

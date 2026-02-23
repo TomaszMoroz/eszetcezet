@@ -20,22 +20,32 @@ app.post('/api/manifest', (req, res) => {
   }
 
   const payload = req.body
+  console.log('RECEIVED PAYLOAD:', JSON.stringify(payload, null, 2));
   if (!payload) return res.status(400).json({ error: 'Missing JSON body' })
 
-  // Ensure 'files' is always present and matches 'fileOrder' if available
-  if (Array.isArray(payload.fileOrder)) {
-    payload.files = [...payload.fileOrder]
+  // --- WALIDACJA: sprawdź wymagane pola ---
+  if (!Array.isArray(payload.files) || !Array.isArray(payload.gallerySequence?.photos) || !Array.isArray(payload.gallerySequence?.videos) || typeof payload.metadata !== 'object' || typeof payload.sections !== 'object') {
+    return res.status(400).json({ error: 'Invalid manifest structure' })
   }
+
+  // Ensure 'files' is always present and matches 'fileOrder' if available
+  // (niepotrzebne, bo frontend wysyła już 'files')
 
   // Write to public/img/manifest.json (relative to repo root)
   const outDir = path.join(__dirname, '..', 'public', 'img')
   const outPath = path.join(outDir, 'manifest.json')
+  const backupPath = path.join(outDir, `manifest-backup-${Date.now()}.json`)
 
   try {
     fs.mkdirSync(outDir, { recursive: true })
+    // --- BACKUP: jeśli manifest istnieje, zrób kopię ---
+    if (fs.existsSync(outPath)) {
+      fs.copyFileSync(outPath, backupPath)
+      console.log('Backup manifest to', backupPath)
+    }
     fs.writeFileSync(outPath, JSON.stringify(payload, null, 2), 'utf8')
     console.log('Wrote manifest to', outPath)
-    return res.json({ ok: true, written: outPath })
+    return res.json({ ok: true, written: outPath, backup: fs.existsSync(backupPath) ? backupPath : null })
   } catch (e) {
     console.error('Failed to write manifest', e && e.stack ? e.stack : e)
     // In dev expose the message; in production you should avoid sending stacks to clients

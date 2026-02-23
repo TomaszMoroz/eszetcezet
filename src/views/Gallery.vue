@@ -1,5 +1,6 @@
 <template>
   <div class="gallery-container">
+    <div v-if="syncStatus" class="sync-status">{{ syncStatus }}</div>
     <!-- Header z przełącznikami i filtrami -->
     <header class="gallery-header">
       <div class="mode-switcher">
@@ -112,6 +113,7 @@ import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 
 // Reactive state
 const currentMode = ref('photos')
+const syncStatus = ref('')
 // force tiles on the site to be uniform landscape (like in the mockup)
 const tileRatio = 'landscape'
 const selectedTag = ref(null)
@@ -387,7 +389,7 @@ const applyMetadata = (meta) => {
 
 // Load gallery images from /img/manifest.json and cache photos/videos separately
 let lastManifestTimestamp = null
-const loadGalleryFromManifest = async () => {
+const loadGalleryFromManifest = async (force = false) => {
   try {
     const base = (import.meta.env.BASE_URL ?? '/')
     const manifestUrl = base.replace(/\/?$/, '/') + 'img/manifest.json'
@@ -395,8 +397,9 @@ const loadGalleryFromManifest = async () => {
     if (!res.ok) return
     const data = await res.json()
     if (!data || !Array.isArray(data.files) || !data.files.length) return
-    if (lastManifestTimestamp === data.timestamp) return // no change
+    if (!force && lastManifestTimestamp === data.timestamp) return // no change
     lastManifestTimestamp = data.timestamp
+    syncStatus.value = ''
     // Pokazuj TYLKO zdjęcia z /img/dashboard/ i filmy z /videos/ (spójnie z PA)
     const photos = []
     const videos = []
@@ -419,8 +422,18 @@ const loadGalleryFromManifest = async () => {
     allPhotos.value = photos
     allVideos.value = videos
     // set galleryData to current mode
-    galleryData.value = currentMode.value === 'photos' ? allPhotos.value : allVideos.value
+    // --- PATCH: Use manifest.json gallerySequence as default if no localStorage sequence ---
+    let photoSeq = (data.gallerySequence && Array.isArray(data.gallerySequence.photos) && data.gallerySequence.photos.length)
+      ? data.gallerySequence.photos : null
+    if (photoSeq) {
+      galleryData.value = photos
+      applyGallerySequence(photoSeq, true)
+    } else {
+      galleryData.value = photos
+    }
+    // videos: unchanged
   } catch (e) {
+    syncStatus.value = 'Błąd ładowania danych z serwera.'
     // ignore
   }
 }
@@ -468,24 +481,6 @@ onMounted(() => {
     try {
       await loadGalleryFromManifest()
     } catch (e) {}
-
-    // load admin setting whether videos should be shown
-    try {
-      const sv = localStorage.getItem(SHOW_VIDEOS_KEY)
-      if (sv != null) showVideos.value = sv === '1' || sv === 'true'
-      if (!showVideos.value) currentMode.value = 'photos'
-    } catch (e) {}
-
-    try {
-      // apply sequence for current mode only (photos vs videos)
-      const key = (currentMode.value === 'photos') ? GALLERY_SEQUENCE_KEY_PHOTOS : GALLERY_SEQUENCE_KEY_VIDEOS
-      const seq = JSON.parse(localStorage.getItem(key) || 'null')
-      if (seq && Array.isArray(seq) && seq.length) {
-        applyGallerySequence(seq, true)
-      }
-    } catch (e) {
-      // ignore
-    }
     // apply saved metadata (focal points, titles, tags)
     try {
       const meta = JSON.parse(localStorage.getItem('gallery-metadata') || 'null')
@@ -501,17 +496,19 @@ onMounted(() => {
   })()
   // live update: listen to storage and custom events from admin
   const handleGalleryUpdated = () => {
+      // Automatyczne odświeżenie manifestu po publikacji
+        syncStatus.value = 'Trwa synchronizacja z serwerem...'
+        setTimeout(() => {
+          loadGalleryFromManifest(true).then(() => {
+            syncStatus.value = 'Dane zaktualizowane.'
+            setTimeout(() => { syncStatus.value = '' }, 2000)
+          })
+        }, 300)
     try {
       // refresh showVideos in case admin changed it
       try { const sv = localStorage.getItem(SHOW_VIDEOS_KEY); if (sv != null) showVideos.value = sv === '1' || sv === 'true' } catch(e){}
-      // apply sequence for current mode only
-      const key = (currentMode.value === 'photos') ? GALLERY_SEQUENCE_KEY_PHOTOS : GALLERY_SEQUENCE_KEY_VIDEOS
-      const seq = JSON.parse(localStorage.getItem(key) || 'null')
-      if (seq && Array.isArray(seq) && seq.length) {
-        applyGallerySequence(seq, true)
-      } else {
-        loadGalleryFromManifest()
-      }
+      // always reload manifest and apply sequence from manifest.json
+      loadGalleryFromManifest(true)
       if (!showVideos.value) currentMode.value = 'photos'
       // apply metadata if present
       try {
@@ -537,6 +534,9 @@ onMounted(() => {
     document.removeEventListener('click', closeDropdownOnClickOutside)
     window.removeEventListener('gallery-updated', handleGalleryUpdated)
     window.removeEventListener('storage', handleStorage)
+    // Informacja o statusie synchronizacji na starcie
+      syncStatus.value = 'Ładowanie danych z serwera...'
+      setTimeout(() => { syncStatus.value = '' }, 2000)
     try { if (videoObserver) { videoObserver.disconnect(); videoObserver = null } } catch(e) {}
   })
 })
@@ -549,18 +549,26 @@ watch(currentMode, (n) => {
   } else {
     galleryData.value = allVideos.value
   }
-  // apply sequence for current mode if present
-  try {
-    const key = (n === 'photos') ? GALLERY_SEQUENCE_KEY_PHOTOS : GALLERY_SEQUENCE_KEY_VIDEOS
-    const seq = JSON.parse(localStorage.getItem(key) || 'null')
-    if (seq && Array.isArray(seq) && seq.length) {
-      applyGallerySequence(seq, true)
-    }
-  } catch (e) {}
+  // always reload manifest and apply sequence from manifest.json
+  loadGalleryFromManifest(true)
 })
 </script>
 
+
 <style scoped>
+.sync-status {
+  background: #222;
+  color: #fff;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  margin: 1rem auto;
+  text-align: center;
+  max-width: 400px;
+  font-size: 1rem;
+  box-shadow: 0 2px 8px #0003;
+  z-index: 10;
+}
+
 .gallery-container {
   min-height: 100vh;
   background: var(--color-bg);
