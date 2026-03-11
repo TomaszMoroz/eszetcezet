@@ -68,6 +68,7 @@
 import { ref, onMounted, computed, onUnmounted } from 'vue'
 
 const SECTIONS_KEY = 'site-sections'
+const SITE_STATE_TIMESTAMP_KEY = 'site-state-timestamp'
 
 const sections = [
   { key: 'navbar', label: 'Navbar' },
@@ -211,6 +212,7 @@ function moveDown(idx) {
 function save() {
   try {
     localStorage.setItem(SECTIONS_KEY, JSON.stringify(data.value))
+    try { localStorage.setItem(SITE_STATE_TIMESTAMP_KEY, new Date().toISOString()) } catch (e) {}
     applyBg(); applyFont(); applyTextColor();
     // also set inline styles immediately for better visual feedback
     try {

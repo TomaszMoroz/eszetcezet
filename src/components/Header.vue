@@ -6,15 +6,21 @@
           <img src="/img/graph/logo_bw.png" alt="Warsaw Studios logo" class="logo-img" />
         </div>
       </div>
-          <div class="brand-text">
-            <slot name="brand"> </slot>
-          </div>
-          <button class="hamburger" @click="mobileOpen = !mobileOpen" aria-label="Toggle menu">☰</button>
-          <nav :class="['main-nav', { open: mobileOpen }]">
-            <a href="#" class="nav-link" @click.prevent="scrollToSection('top')">Home</a>
-            <a href="#works" class="nav-link" @click.prevent="scrollToSection('works')">Portfolio</a>
-            <a href="#kontakt" class="nav-link" @click.prevent="scrollToSection('kontakt')">Kontakt</a>
-          </nav>
+      <button
+        class="hamburger"
+        type="button"
+        :aria-expanded="mobileOpen ? 'true' : 'false'"
+        aria-controls="main-navigation"
+        aria-label="Otwórz menu"
+        @click="mobileOpen = !mobileOpen"
+      >
+        ☰
+      </button>
+      <nav id="main-navigation" :class="['main-nav', { open: mobileOpen }]" aria-label="Nawigacja główna">
+        <a href="#" class="nav-link" @click.prevent="scrollToSection('top')">Start</a>
+        <a href="#works" class="nav-link" @click.prevent="scrollToSection('works')">Portfolio</a>
+        <a href="#kontakt" class="nav-link" @click.prevent="scrollToSection('kontakt')">Kontakt</a>
+      </nav>
     </div>
   </header>
 </template>
@@ -49,7 +55,11 @@ function scrollToSection(section) {
 .site-header {
   background: var(--section-navbar-bg, var(--color-header-bg)); /* header color controlled from main.css */
   color: var(--color-text);
-  border-bottom: 1px solid rgba(255,255,255,0.04);
+  border-bottom: 1px solid var(--surface-border);
+  position: sticky;
+  top: 0;
+  z-index: 250;
+  backdrop-filter: blur(16px);
 }
 .site-inner {
   max-width: 1280px;
@@ -95,17 +105,33 @@ function scrollToSection(section) {
   letter-spacing: 1px;
 }
 .main-nav a {
-  color: #fff;
+  color: var(--color-nav-text, #fff);
   text-decoration: none;
   margin-left: 1rem;
   font-size: 0.95rem;
+  opacity: 0.88;
+}
+
+.main-nav a:hover,
+.main-nav a:focus-visible {
+  opacity: 1;
 }
 
 .hamburger { display: none; }
 @media (max-width: 900px) {
+  .site-inner {
+    padding: 0.75rem 1rem;
+  }
   .main-nav { display: none; }
-  .hamburger { display: block; background: transparent; border: 1px solid rgba(255,255,255,0.06); color: var(--color-text); padding: 0.4rem 0.6rem; border-radius: 6px; }
-  .main-nav.open { display: flex; position: absolute; right: 1.5rem; top: 64px; flex-direction: column; background: var(--section-navbar-bg, var(--color-header-bg)); padding: 0.75rem; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.5) }
+  .logo-wrap {
+    width: 56px;
+    height: 56px;
+  }
+  .logo-img {
+    max-height: 42px;
+  }
+  .hamburger { display: block; background: transparent; border: 1px solid var(--surface-border); color: var(--color-text); padding: 0.4rem 0.6rem; border-radius: 6px; }
+  .main-nav.open { display: flex; position: absolute; right: 1rem; top: calc(100% - 0.25rem); flex-direction: column; background: color-mix(in srgb, var(--section-navbar-bg, var(--color-header-bg)) 92%, black 8%); padding: 0.75rem; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.5) }
   .main-nav.open .nav-link { margin: 0.3rem 0 }
 }
 

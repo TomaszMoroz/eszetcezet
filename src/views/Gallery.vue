@@ -1,59 +1,74 @@
 <template>
   <div class="gallery-container">
     <div v-if="syncStatus" class="sync-status">{{ syncStatus }}</div>
-    <!-- Header z przełącznikami i filtrami -->
     <header class="gallery-header">
-      <div class="mode-switcher">
-        <button 
+      <div class="gallery-toolbar">
+        <div class="mode-switcher">
+          <button
+            type="button"
           :class="['mode-btn', { active: currentMode === 'photos' }]"
           @click="currentMode = 'photos'"
         >
           Zdjęcia
         </button>
-        <button 
+          <button
+            type="button"
           v-if="showVideos"
           :class="['mode-btn', { active: currentMode === 'videos' }]"
           @click="currentMode = 'videos'"
         >
           Wideo
         </button>
-      </div>
-      
-      <div class="tag-filters" v-if="availableTags.length">
-        <div class="tag-dropdown">
-          <button class="dropdown-toggle" @click="toggleTagDropdown">
-            <span>{{ selectedTag || 'Wszystkie kategorie' }}</span>
-            <span class="dropdown-arrow" :class="{ open: showTagDropdown }">▼</span>
-          </button>
-          
-          <div v-if="showTagDropdown" class="dropdown-menu">
-            <button 
-              class="dropdown-item"
-              :class="{ active: !selectedTag }"
-              @click="selectTagFromDropdown(null)"
-            >
-              Wszystkie
-            </button>
-            <button 
-              v-for="tag in availableTags" 
-              :key="tag"
-              class="dropdown-item"
-              :class="{ active: selectedTag === tag }"
-              @click="selectTagFromDropdown(tag)"
-            >
-              {{ tag }}
-            </button>
+        </div>
+
+        <div class="gallery-meta">
+          <p class="gallery-counter">{{ filteredItems.length }} elementów w widoku</p>
+
+          <div class="tag-filters" v-if="availableTags.length">
+            <div class="tag-dropdown">
+              <button class="dropdown-toggle" type="button" :aria-expanded="showTagDropdown ? 'true' : 'false'" @click="toggleTagDropdown">
+                <span>{{ selectedTag || 'Wszystkie kategorie' }}</span>
+                <span class="dropdown-arrow" :class="{ open: showTagDropdown }">▼</span>
+              </button>
+
+              <div v-if="showTagDropdown" class="dropdown-menu">
+                <button
+                  type="button"
+                  class="dropdown-item"
+                  :class="{ active: !selectedTag }"
+                  @click="selectTagFromDropdown(null)"
+                >
+                  Wszystkie
+                </button>
+                <button
+                  v-for="tag in availableTags"
+                  :key="tag"
+                  type="button"
+                  class="dropdown-item"
+                  :class="{ active: selectedTag === tag }"
+                  @click="selectTagFromDropdown(tag)"
+                >
+                  {{ tag }}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </header>
 
-    <!-- Masonry Grid -->
-    <div class="masonry-grid" ref="masonryGrid">
-      <div 
+    <div v-if="!filteredItems.length" class="gallery-empty">
+      <h3>Brak pozycji w tej sekcji</h3>
+      <p>Dodaj elementy do sekwencji galerii w panelu administracyjnym albo zmień filtr kategorii.</p>
+    </div>
+
+    <div v-else class="masonry-grid">
+      <button
         v-for="item in filteredItems" 
         :key="item.id"
+        type="button"
         :class="['masonry-item', 'ratio-landscape']"
+        :aria-label="`Otwórz ${item.title}`"
         @click="openLightbox(item)"
       >
         <img 
@@ -79,13 +94,12 @@
         <div class="item-overlay">
           <span class="item-title">{{ item.title }}</span>
         </div>
-      </div>
+      </button>
     </div>
 
-    <!-- Lightbox Modal -->
-    <div v-if="lightboxItem" class="lightbox" @click="closeLightbox">
+    <div v-if="lightboxItem" class="lightbox" role="dialog" aria-modal="true" @click="closeLightbox">
       <div class="lightbox-content" @click.stop>
-        <button class="close-btn" @click="closeLightbox">×</button>
+        <button class="close-btn" type="button" @click="closeLightbox">×</button>
         
         <img 
           v-if="currentMode === 'photos'"
@@ -103,30 +117,31 @@
         <div class="lightbox-info">
           <h3>{{ lightboxItem.title }}</h3>
           <p v-if="lightboxItem.description" class="lightbox-description" v-html="renderMarkdown(lightboxItem.description)"></p>
-          <div class="tags">
+          <div v-if="lightboxItem.tags && lightboxItem.tags.length" class="tags">
             <span v-for="tag in lightboxItem.tags" :key="tag" class="tag">{{ tag }}</span>
           </div>
         </div>
       </div>
     </div>
   </div>
-</template><script setup>
+</template>
+
+<script setup>
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 
 // Reactive state
 const currentMode = ref('photos')
 const syncStatus = ref('')
-// force tiles on the site to be uniform landscape (like in the mockup)
-const tileRatio = 'landscape'
 const selectedTag = ref(null)
 const lightboxItem = ref(null)
-const masonryGrid = ref(null)
 const showTagDropdown = ref(false)
 // video section visibility controlled by admin (persisted)
 const showVideos = ref(true)
 const SHOW_VIDEOS_KEY = 'gallery-show-videos'
 const GALLERY_SEQUENCE_KEY_PHOTOS = 'gallery-sequence:photos'
 const GALLERY_SEQUENCE_KEY_VIDEOS = 'gallery-sequence:videos'
+const METADATA_KEY = 'gallery-metadata'
+const SITE_STATE_TIMESTAMP_KEY = 'site-state-timestamp'
 
 // Caching photos and videos separately
 const allPhotos = ref([])
@@ -146,6 +161,53 @@ const filteredItems = computed(() => {
     return tagMatch
   })
 })
+
+const basename = (path) => {
+  if (!path) return ''
+  const parts = String(path).split('/')
+  return parts[parts.length - 1].toLowerCase()
+}
+
+function parseTimestamp(value) {
+  const parsed = Date.parse(value || '')
+  return Number.isNaN(parsed) ? 0 : parsed
+}
+
+function readStoredArray(key) {
+  try {
+    const value = JSON.parse(localStorage.getItem(key) || 'null')
+    return Array.isArray(value) ? value : null
+  } catch (e) {
+    return null
+  }
+}
+
+function readStoredMetadata() {
+  try {
+    const value = JSON.parse(localStorage.getItem(METADATA_KEY) || 'null')
+    return value && typeof value === 'object' ? value : null
+  } catch (e) {
+    return null
+  }
+}
+
+function renderMarkdown(text) {
+  if (!text) return ''
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\n/g, '<br>')
+}
+
+function setGalleryItemsForMode() {
+  if (currentMode.value === 'videos') {
+    galleryData.value = showVideos.value ? [...allVideos.value] : []
+    return
+  }
+
+  galleryData.value = [...allPhotos.value]
+}
 
 // --- Video UX helpers ---
 let videoObserver = null
@@ -281,14 +343,6 @@ const closeLightbox = () => {
   document.body.style.overflow = ''
 }
 
-const filterByTag = (tag) => {
-  if (selectedTag.value === tag) {
-    selectedTag.value = null // Usuń filtr jeśli ten sam tag
-  } else {
-    selectedTag.value = tag // Ustaw nowy filtr
-  }
-}
-
 const toggleTagDropdown = () => {
   showTagDropdown.value = !showTagDropdown.value
 }
@@ -316,42 +370,28 @@ const handleKeydown = (e) => {
   }
 }
 
-// Apply a gallery sequence (array of filenames or paths) to reorder galleryData
-// If `strict` is true, only items matching the sequence will be kept (others removed).
-const applyGallerySequence = (seq, strict = false) => {
-  if (!seq || !Array.isArray(seq) || !seq.length) return
-  // helper to get basename
-  const basename = (p) => {
-    if (!p) return ''
-    const parts = p.split('/')
-    return parts[parts.length - 1].toLowerCase()
-  }
-  const seqBasenames = seq.map(s => basename(s))
-
-  // Tylko te elementy, które są obecne w galleryData (czyli w manifest.json)
-  const remaining = [...galleryData.value]
+function orderItemsBySequence(items, sequence = []) {
+  if (!Array.isArray(sequence) || !sequence.length) return items
+  const remaining = [...items]
   const reordered = []
+  const seqBasenames = sequence.map(item => basename(item))
 
   seqBasenames.forEach(name => {
     const idx = remaining.findIndex(it => {
-      const srcBase = it.src ? basename(it.src) : ''
-      const thumbBase = it.thumbnail ? basename(it.thumbnail) : ''
+      const srcBase = basename(it.src)
+      const thumbBase = basename(it.thumbnail)
       if (srcBase === name) return true
       if (thumbBase === name) return true
       if (it.title && it.title.toLowerCase().includes(name)) return true
       return false
     })
     if (idx > -1) {
-      reordered.push(remaining.splice(idx,1)[0])
+      reordered.push(remaining.splice(idx, 1)[0])
     }
   })
 
-  if (!strict) {
-    // append leftovers
-    reordered.push(...remaining)
-  }
-  // Odfiltrowanie: tylko elementy, które istnieją w galleryData
-  galleryData.value = reordered.filter(Boolean)
+  reordered.push(...remaining)
+  return reordered.filter(Boolean)
 }
 
 // Merge metadata (object keyed by /img/... or filename) into current galleryData items
@@ -407,10 +447,12 @@ const loadGalleryFromManifest = async (force = false) => {
     if (!force && lastManifestTimestamp === data.timestamp) return // no change
     lastManifestTimestamp = data.timestamp
     syncStatus.value = ''
-    // Build photos/videos arrays
+    const manifestTimestamp = parseTimestamp(data.timestamp)
+    const localTimestamp = parseTimestamp(localStorage.getItem(SITE_STATE_TIMESTAMP_KEY))
+    const useLocalState = localTimestamp > manifestTimestamp
     let photos = []
     let videos = []
-    data.files.forEach((f, idx) => {
+    data.files.forEach((f) => {
       if ((f.startsWith('/img/dashboard/') || f.startsWith('img/dashboard/')) && /\.(jpe?g|png|webp|avif|gif|heic|bmp)$/i.test(f)) {
         const name = f.split('/').pop()
         photos.push({ id: 10000 + photos.length, type: 'photo', title: name, src: f, ratio: 'landscape', tags: [], focalX: 50, focalY: 50 })
@@ -426,10 +468,19 @@ const loadGalleryFromManifest = async (force = false) => {
         })()
       }
     })
-    // Merge metadata from manifest.json into photos/videos before applying sequence
-    if (data.metadata && typeof data.metadata === 'object') {
+    const effectiveMetadata = useLocalState ? (readStoredMetadata() || data.metadata || {}) : (data.metadata || {})
+
+    if (!useLocalState) {
+      try { localStorage.setItem(GALLERY_SEQUENCE_KEY_PHOTOS, JSON.stringify(data.gallerySequence.photos || [])) } catch (e) {}
+      try { localStorage.setItem(GALLERY_SEQUENCE_KEY_VIDEOS, JSON.stringify(data.gallerySequence.videos || [])) } catch (e) {}
+      try { localStorage.setItem(METADATA_KEY, JSON.stringify(effectiveMetadata)) } catch (e) {}
+      try { localStorage.setItem(SITE_STATE_TIMESTAMP_KEY, data.timestamp || new Date().toISOString()) } catch (e) {}
+    }
+
+    // Merge metadata from manifest/local shared state into photos/videos before applying sequence
+    if (effectiveMetadata && typeof effectiveMetadata === 'object') {
       const byBase = {}
-      Object.entries(data.metadata).forEach(([k, v]) => {
+      Object.entries(effectiveMetadata).forEach(([k, v]) => {
         const base = k.split('/').pop().toLowerCase()
         byBase[base] = v
         byBase[k.toLowerCase()] = v
@@ -473,22 +524,21 @@ const loadGalleryFromManifest = async (force = false) => {
         return item
       })
     }
-    allPhotos.value = photos
-    allVideos.value = videos
-    // Only show photos that are in gallerySequence.photos
-    const photoSeq = data.gallerySequence.photos
-    if (photoSeq && photoSeq.length) {
-      // Filter photos to only those in the sequence
-      const seqBasenames = photoSeq.map(s => s.split('/').pop().toLowerCase())
-      const filtered = photos.filter(p => seqBasenames.includes(p.src.split('/').pop().toLowerCase()))
-      galleryData.value = filtered
-    } else {
-      galleryData.value = []
-    }
-    // videos: unchanged
+    const photoSequence = useLocalState ? (readStoredArray(GALLERY_SEQUENCE_KEY_PHOTOS) || data.gallerySequence.photos || []) : (Array.isArray(data.gallerySequence.photos) ? data.gallerySequence.photos : [])
+    const videoSequence = useLocalState ? (readStoredArray(GALLERY_SEQUENCE_KEY_VIDEOS) || data.gallerySequence.videos || []) : (Array.isArray(data.gallerySequence.videos) ? data.gallerySequence.videos : [])
+
+    allPhotos.value = orderItemsBySequence(
+      photos.filter((item) => !photoSequence.length || photoSequence.map((entry) => basename(entry)).includes(basename(item.src))),
+      photoSequence
+    )
+    allVideos.value = orderItemsBySequence(
+      videos.filter((item) => !videoSequence.length || videoSequence.map((entry) => basename(entry)).includes(basename(item.src))),
+      videoSequence
+    )
+
+    setGalleryItemsForMode()
   } catch (e) {
     syncStatus.value = 'Błąd ładowania danych z serwera.'
-    // ignore
   }
 }
 
@@ -526,11 +576,41 @@ function probeForPoster(item) {
   })
 }
 
+const handleGalleryUpdated = async () => {
+  syncStatus.value = 'Trwa synchronizacja z serwerem...'
+
+  try {
+    const sv = localStorage.getItem(SHOW_VIDEOS_KEY)
+    if (sv != null) showVideos.value = sv === '1' || sv === 'true'
+  } catch (e) {}
+
+  if (!showVideos.value && currentMode.value === 'videos') {
+    currentMode.value = 'photos'
+  }
+
+  await loadGalleryFromManifest(true)
+
+  await nextTick()
+  setupVideoObserver()
+  if (currentMode.value === 'videos') loadAllVideoDurations().catch(() => {})
+
+  syncStatus.value = 'Dane zaktualizowane.'
+  window.setTimeout(() => {
+    syncStatus.value = ''
+  }, 1800)
+}
+
+const handleStorage = (e) => {
+  if (!e) return
+  if (e.key === GALLERY_SEQUENCE_KEY_PHOTOS || e.key === GALLERY_SEQUENCE_KEY_VIDEOS || e.key === 'gallery-metadata' || e.key === SHOW_VIDEOS_KEY) {
+    handleGalleryUpdated()
+  }
+}
+
 onMounted(() => {
   document.addEventListener('keydown', handleKeydown)
   document.addEventListener('click', closeDropdownOnClickOutside)
-  // apply saved gallery sequence if present
-  // ensure we load manifest first, then apply any saved sequence (so matching uses manifest items)
+  syncStatus.value = 'Ładowanie danych z serwera...'
   ;(async () => {
     let themeObj = null
     try {
@@ -544,15 +624,12 @@ onMounted(() => {
         }
       }
     } catch (e) {}
-    // Apply theme if present
     if (themeObj) {
-      // Apply color variables
       if (themeObj.colors && typeof themeObj.colors === 'object') {
         Object.entries(themeObj.colors).forEach(([k, v]) => {
           try { document.documentElement.style.setProperty(k, v) } catch (e) {}
         })
       }
-      // Apply typography variables
       if (themeObj.typography && typeof themeObj.typography === 'object') {
         Object.keys(themeObj.typography).forEach(sectionKey => {
           const cfg = themeObj.typography[sectionKey]
@@ -570,76 +647,47 @@ onMounted(() => {
     try {
       await loadGalleryFromManifest()
     } catch (e) {}
-    // apply saved metadata (focal points, titles, tags)
     try {
-      const meta = JSON.parse(localStorage.getItem('gallery-metadata') || 'null')
-      if (meta && typeof meta === 'object') applyMetadata(meta)
-    } catch (e) {}
-    // lazy-load preview videos and fetch durations for video items
-    try {
-      // allow DOM to update with masonry items
       await nextTick()
       setupVideoObserver()
-      loadAllVideoDurations().catch(()=>{})
+      if (currentMode.value === 'videos') loadAllVideoDurations().catch(() => {})
     } catch(e) {}
-  })()
-  // live update: listen to storage and custom events from admin
-  const handleGalleryUpdated = () => {
-      // Automatyczne odświeżenie manifestu po publikacji
-        syncStatus.value = 'Trwa synchronizacja z serwerem...'
-        setTimeout(() => {
-          loadGalleryFromManifest(true).then(() => {
-            syncStatus.value = 'Dane zaktualizowane.'
-            setTimeout(() => { syncStatus.value = '' }, 2000)
-          })
-        }, 300)
-    try {
-      // refresh showVideos in case admin changed it
-      try { const sv = localStorage.getItem(SHOW_VIDEOS_KEY); if (sv != null) showVideos.value = sv === '1' || sv === 'true' } catch(e){}
-      // always reload manifest and apply sequence from manifest.json
-      loadGalleryFromManifest(true)
-      if (!showVideos.value) currentMode.value = 'photos'
-      // apply metadata if present
-      try {
-        const meta = JSON.parse(localStorage.getItem('gallery-metadata') || 'null')
-        if (meta && typeof meta === 'object') applyMetadata(meta)
-      } catch (e) {}
-    } catch (e) {}
-  }
 
-  const handleStorage = (e) => {
-    if (!e) return
-    if (e.key === GALLERY_SEQUENCE_KEY_PHOTOS || e.key === GALLERY_SEQUENCE_KEY_VIDEOS || e.key === 'gallery-metadata' || e.key === SHOW_VIDEOS_KEY) {
-      handleGalleryUpdated()
-    }
-  }
+    window.setTimeout(() => {
+      syncStatus.value = ''
+    }, 1200)
+  })()
 
   window.addEventListener('gallery-updated', handleGalleryUpdated)
   window.addEventListener('storage', handleStorage)
-
-  // clean up listeners on unmount
-  onUnmounted(() => {
-    document.removeEventListener('keydown', handleKeydown)
-    document.removeEventListener('click', closeDropdownOnClickOutside)
-    window.removeEventListener('gallery-updated', handleGalleryUpdated)
-    window.removeEventListener('storage', handleStorage)
-    // Informacja o statusie synchronizacji na starcie
-      syncStatus.value = 'Ładowanie danych z serwera...'
-      setTimeout(() => { syncStatus.value = '' }, 2000)
-    try { if (videoObserver) { videoObserver.disconnect(); videoObserver = null } } catch(e) {}
-  })
 })
 
-// Watch mode changes and just switch reference to cached list
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
+  document.removeEventListener('click', closeDropdownOnClickOutside)
+  window.removeEventListener('gallery-updated', handleGalleryUpdated)
+  window.removeEventListener('storage', handleStorage)
+  try {
+    if (videoObserver) {
+      videoObserver.disconnect()
+      videoObserver = null
+    }
+  } catch (e) {}
+})
+
 watch(currentMode, (n) => {
   resetFiltersOnModeChange()
-  if (n === 'photos') {
-    galleryData.value = allPhotos.value
-  } else {
-    galleryData.value = allVideos.value
+  if (n === 'videos' && !showVideos.value) {
+    currentMode.value = 'photos'
+    return
   }
-  // always reload manifest and apply sequence from manifest.json
-  loadGalleryFromManifest(true)
+
+  setGalleryItemsForMode()
+
+  nextTick(() => {
+    setupVideoObserver()
+    if (currentMode.value === 'videos') loadAllVideoDurations().catch(() => {})
+  })
 })
 </script>
 
@@ -659,31 +707,48 @@ watch(currentMode, (n) => {
 }
 
 .gallery-container {
-  min-height: 100vh;
+  min-height: 30vh;
   background: var(--color-bg);
   padding: 0;
 }
 
-/* Header */
 .gallery-header {
   position: sticky;
   top: 0;
-  background: var(--color-header-bg);
+  background: color-mix(in srgb, var(--color-header-bg) 90%, black 10%);
   backdrop-filter: blur(10px);
-  border-bottom: 1px solid var(--color-section-dark);
-  padding: 1.5rem 2rem;
+  border-bottom: 1px solid var(--surface-border);
+  padding: 1rem 0 1.25rem;
   z-index: 100;
+}
+
+.gallery-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 1rem;
+}
+
+.gallery-meta {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.gallery-counter {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.92rem;
 }
 
 .mode-switcher {
   display: flex;
   gap: 0.5rem;
-  margin-bottom: 1rem;
 }
 
 .mode-btn {
   background: var(--color-section-dark);
-  border: 1px solid var(--color-section-dark);
+  border: 1px solid var(--surface-border);
   color: var(--color-text);
   padding: 0.75rem 1.5rem;
   border-radius: 25px;
@@ -710,7 +775,7 @@ watch(currentMode, (n) => {
 
 .dropdown-toggle {
   background: var(--color-section-dark);
-  border: 1px solid var(--color-section-dark);
+  border: 1px solid var(--surface-border);
   color: var(--color-text);
   padding: 0.75rem 1.5rem;
   border-radius: 25px;
@@ -744,7 +809,7 @@ watch(currentMode, (n) => {
   left: 0;
   right: 0;
   background: var(--color-section-dark);
-  border: 1px solid var(--color-section-dark);
+  border: 1px solid var(--surface-border);
   border-radius: 12px;
   margin-top: 0.5rem;
   max-height: 300px;
@@ -780,7 +845,14 @@ watch(currentMode, (n) => {
   color: var(--color-text-dark);
 }
 
-/* Masonry Grid */
+.gallery-empty {
+  margin: 2rem 0 0;
+  padding: 2rem;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--surface-border);
+  text-align: center;
+}
 
 .masonry-grid {
   display: flex;
@@ -800,6 +872,9 @@ watch(currentMode, (n) => {
 }
 
 .masonry-item {
+  appearance: none;
+  border: none;
+  padding: 0;
   break-inside: avoid;
   margin-bottom: 1rem;
   position: relative;
@@ -817,6 +892,10 @@ watch(currentMode, (n) => {
   width: 100%;
   height: auto;
   display: block;
+}
+
+.masonry-item:focus-visible {
+  outline-offset: 4px;
 }
 
 /* Różne proporcje */
@@ -971,6 +1050,11 @@ watch(currentMode, (n) => {
 }
 
 @media (max-width: 900px) {
+  .gallery-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
   .masonry-item {
     flex-basis: calc(50% - 1rem);
     max-width: calc(50% - 1rem);

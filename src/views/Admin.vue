@@ -1,6 +1,9 @@
 <template>
   <div class="admin-panel">
     <div class="admin-inner">
+    <div v-if="statusMessage" :class="['status-banner', `status-banner--${statusTone}`]">
+      {{ statusMessage }}
+    </div>
     <div v-if="!authed" class="auth-modal">
       <div class="auth-box">
         <h2>Logowanie do panelu administracyjnego</h2>
@@ -14,7 +17,32 @@
       </div>
     </div>
     <div v-else>
-      <h1>Panel administracyjny</h1>
+      <div class="admin-heading-row">
+        <h1>Panel administracyjny</h1>
+        <div class="state-toolbar">
+          <span :class="['state-badge', `state-badge--${stateBadgeTone}`]">{{ stateBadgeLabel }}</span>
+          <button
+            type="button"
+            class="btn small secondary"
+            :disabled="!canRestorePublishedState || isPublishing"
+            @click="restorePublishedState"
+          >
+            Przywróć stan opublikowany
+          </button>
+        </div>
+      </div>
+      <p class="admin-lead">Zarządzaj kolejnością galerii, metadanymi i publikacją zmian w jednym miejscu.</p>
+      <div class="state-meta">
+        <span>{{ publishedStateLabel }}</span>
+        <span>{{ localStateLabel }}</span>
+      </div>
+      <div class="state-diff" v-if="dirtyAreas.length">
+        <span class="state-diff-label">Lokalne zmiany:</span>
+        <span v-for="area in dirtyAreas" :key="area.key" class="state-chip">{{ area.label }}</span>
+      </div>
+      <div class="state-diff" v-else>
+        <span class="state-diff-label">Brak lokalnych różnic względem publikacji.</span>
+      </div>
     </div>
   <section class="card" v-if="authed">
       <h2>Kolejność zdjęć/wideo</h2>
@@ -27,15 +55,6 @@
         <button :class="['mode-btn', { active: editingMode === 'photos' }]" @click="editingMode = 'photos'">Zdjęcia</button>
         <button :class="['mode-btn', { active: editingMode === 'videos' }]" @click="editingMode = 'videos'">Wideo</button>
       </div>
-      <draggable v-model="items" item-key="id">
-        <template #item="{element}">
-          <div class="admin-tile">
-            <img v-if="element.type==='photo'" :src="element.thumb" :alt="element.title" />
-            <span v-else>🎬</span>
-            <span>{{ element.title }}</span>
-          </div>
-        </template>
-      </draggable>
       <div class="divider" />
       <div class="files-grid">
         <div class="files-col">
@@ -63,7 +82,7 @@
             </draggable>
           </div>
           <div class="file-actions">
-            <button class="btn" @click="publishGallerySequence">Zapisz i opublikuj galerię</button>
+            <button class="btn" :disabled="isPublishing" @click="publishGallerySequence">{{ isPublishing ? 'Publikowanie...' : 'Zapisz i opublikuj galerię' }}</button>
             <button class="btn small secondary" @click="clearGallerySequence">Wyczyść galerię</button>
           </div>
         </div>
@@ -116,7 +135,7 @@
             </fieldset>
 
             <div class="file-actions">
-              <button class="btn" @click="publishMetadata(selectedMetaName)">Zapisz i opublikuj metadane</button>
+              <button class="btn" :disabled="isPublishing" @click="publishMetadata(selectedMetaName)">{{ isPublishing ? 'Publikowanie...' : 'Zapisz i opublikuj metadane' }}</button>
               <button class="btn small secondary" @click="removeFromMetadata(selectedMetaName)">Usuń metadane</button>
               <button class="btn small secondary" @click="selectedMetaName = null">Zamknij</button>
             </div>
@@ -174,7 +193,7 @@
         </label>
 
         <div class="file-actions">
-          <button class="btn" @click="publishChanges">Publikuj zmiany na serwer</button>
+          <button class="btn" :disabled="isPublishing" @click="publishChanges">{{ isPublishing ? 'Publikowanie...' : 'Publikuj zmiany na serwer' }}</button>
           <button class="btn small secondary" @click="savePublishSettings">Zapisz ustawienia</button>
         </div>
         <div v-if="lastPublishedAt" class="hint">Ostatnia publikacja: {{ lastPublishedAt }}</div>
@@ -185,21 +204,43 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import draggable from 'vuedraggable';
 import ThemeEditor from '../components/ThemeEditor.vue';
 import SectionEditor from '../components/SectionEditor.vue';
 // admin styles
 import '../styles/admin.css'
 
-// no hard-coded sample items — items are populated from manifest/sequence
-const items = ref([])
-
 const fileOrder = ref([])
 const gallerySequencePhotos = ref([])
 const gallerySequenceVideos = ref([])
 const metadata = ref({})
 const selectedMetaName = ref(null)
+const statusMessage = ref('')
+const statusTone = ref('info')
+const isPublishing = ref(false)
+const manifestStateTimestamp = ref(0)
+const manifestStateIso = ref('')
+const localStateTimestamp = ref(parseTimestamp(localStorage.getItem('site-state-timestamp')))
+const localStateIso = ref(localStorage.getItem(SITE_STATE_TIMESTAMP_KEY) || '')
+const localSections = ref(readStoredObject(SECTIONS_KEY, {}))
+const localTheme = ref(readStoredObject(THEME_KEY, null))
+const publishedGallerySequencePhotos = ref([])
+const publishedGallerySequenceVideos = ref([])
+const publishedMetadata = ref({})
+const publishedSections = ref({})
+const publishedTheme = ref(null)
+
+function notify(message, tone = 'info') {
+  statusMessage.value = message
+  statusTone.value = tone
+  window.clearTimeout(notify.timeoutId)
+  notify.timeoutId = window.setTimeout(() => {
+    statusMessage.value = ''
+  }, 2600)
+}
+
+notify.timeoutId = null
 
 function openMetaEditor(name) {
   if (!metadata.value[name]) {
@@ -223,6 +264,7 @@ async function publishMetadata(name) {
   // Zapisz metadane do localStorage
   try {
     localStorage.setItem(METADATA_KEY, JSON.stringify(metadata.value))
+    markSiteStateUpdated()
   } catch (e) { console.warn(e) }
   // Opublikuj cały manifest (z nowymi metadanymi)
   await publishChanges()
@@ -232,10 +274,122 @@ const METADATA_KEY = 'gallery-metadata'
 const GALLERY_SEQUENCE_KEY_PHOTOS = 'gallery-sequence:photos'
 const GALLERY_SEQUENCE_KEY_VIDEOS = 'gallery-sequence:videos'
 const SHOW_VIDEOS_KEY = 'gallery-show-videos'
+const SITE_STATE_TIMESTAMP_KEY = 'site-state-timestamp'
 const DESCRIPTION_MAXLEN = 1000
 const PUBLISH_ENDPOINT_KEY = 'admin-publish-endpoint'
 const PUBLISH_TOKEN_KEY = 'admin-publish-token'
 const LAST_PUBLISHED_KEY = 'admin-last-published'
+const SECTIONS_KEY = 'site-sections'
+const THEME_KEY = 'site-theme'
+
+function parseTimestamp(value) {
+  const parsed = Date.parse(value || '')
+  return Number.isNaN(parsed) ? 0 : parsed
+}
+
+function cloneValue(value) {
+  if (value == null) return value
+  return JSON.parse(JSON.stringify(value))
+}
+
+function normalizeValue(value) {
+  if (Array.isArray(value)) {
+    return value.map(normalizeValue)
+  }
+  if (value && typeof value === 'object') {
+    return Object.keys(value)
+      .sort()
+      .reduce((result, key) => {
+        result[key] = normalizeValue(value[key])
+        return result
+      }, {})
+  }
+  return value
+}
+
+function areEqual(left, right) {
+  return JSON.stringify(normalizeValue(left)) === JSON.stringify(normalizeValue(right))
+}
+
+function readStoredObject(key, fallback = {}) {
+  try {
+    const value = JSON.parse(localStorage.getItem(key) || 'null')
+    if (value == null) return cloneValue(fallback)
+    if (typeof value === 'object') return value
+  } catch (e) {}
+  return cloneValue(fallback)
+}
+
+function refreshLocalDerivedState() {
+  localSections.value = readStoredObject(SECTIONS_KEY, {})
+  localTheme.value = readStoredObject(THEME_KEY, null)
+  localStateIso.value = localStorage.getItem(SITE_STATE_TIMESTAMP_KEY) || ''
+  localStateTimestamp.value = parseTimestamp(localStateIso.value)
+}
+
+function markSiteStateUpdated(value = new Date().toISOString()) {
+  localStateTimestamp.value = parseTimestamp(value)
+  localStateIso.value = value
+  try { localStorage.setItem(SITE_STATE_TIMESTAMP_KEY, value) } catch (e) {}
+  refreshLocalDerivedState()
+}
+
+function formatStateDate(value) {
+  const timestamp = parseTimestamp(value)
+  if (!timestamp) return 'brak danych'
+  return new Date(timestamp).toLocaleString()
+}
+
+const hasUnpublishedChanges = computed(() => localStateTimestamp.value > manifestStateTimestamp.value)
+
+const stateBadgeLabel = computed(() => {
+  return hasUnpublishedChanges.value ? 'Lokalne zmiany nieopublikowane' : 'Stan zgodny z publikacją'
+})
+
+const stateBadgeTone = computed(() => {
+  return hasUnpublishedChanges.value ? 'draft' : 'published'
+})
+
+const publishedStateLabel = computed(() => {
+  return `Opublikowany stan: ${formatStateDate(manifestStateIso.value)}`
+})
+
+const localStateLabel = computed(() => {
+  const prefix = hasUnpublishedChanges.value ? 'Ostatnia lokalna zmiana' : 'Lokalny stan'
+  return `${prefix}: ${formatStateDate(localStateIso.value)}`
+})
+
+const dirtyAreas = computed(() => {
+  const areas = []
+
+  if (!areEqual(
+    gallerySequencePhotos.value.map(item => item.name || item),
+    publishedGallerySequencePhotos.value
+  ) || !areEqual(
+    gallerySequenceVideos.value.map(item => item.name || item),
+    publishedGallerySequenceVideos.value
+  )) {
+    areas.push({ key: 'gallery', label: 'Galeria' })
+  }
+
+  if (!areEqual(metadata.value, publishedMetadata.value)) {
+    areas.push({ key: 'metadata', label: 'Metadane' })
+  }
+
+  if (!areEqual(localSections.value, publishedSections.value)) {
+    areas.push({ key: 'sections', label: 'Sekcje' })
+  }
+
+  if (!areEqual(localTheme.value, publishedTheme.value)) {
+    areas.push({ key: 'theme', label: 'Motyw' })
+  }
+
+  return areas
+})
+
+const canRestorePublishedState = computed(() => {
+  return Boolean(manifestStateTimestamp.value) && dirtyAreas.value.length > 0
+})
 
 // computed writable sequence for current editing mode
 const gallerySequence = computed({
@@ -294,40 +448,79 @@ function tryLogin() {
   if (password.value === 'admin') {
     authed.value = true
     sessionStorage.setItem('admin-authed', '1')
+    notify('Zalogowano do panelu administracyjnego.', 'success')
   } else {
-    alert('Nieprawidłowe hasło')
+    notify('Nieprawidłowe hasło.', 'error')
   }
 }
 
 function cancelLogin() {
   password.value = ''
 }
-
-const FILE_ORDER_KEY = 'gallery-file-order'
-
 // publish endpoint (configurable via Vite env)
 const PUBLISH_URL = import.meta.env.VITE_PUBLISH_MANIFEST_URL || '/api/manifest'
-const ADMIN_TOKEN = import.meta.env.VITE_ADMIN_TOKEN || ''
 
 async function loadManifest() {
   try {
+    const manifestRes = await fetch('/img/manifest.json', { cache: 'no-store' })
+    if (manifestRes && manifestRes.ok) {
+      const manifest = await manifestRes.json()
+      const manifestTimestamp = parseTimestamp(manifest && manifest.timestamp)
+      const localTimestamp = parseTimestamp(localStorage.getItem(SITE_STATE_TIMESTAMP_KEY))
+      const preferLocalState = localTimestamp > manifestTimestamp
+      manifestStateTimestamp.value = manifestTimestamp
+      manifestStateIso.value = manifest && manifest.timestamp ? manifest.timestamp : ''
+      publishedGallerySequencePhotos.value = Array.isArray(manifest?.gallerySequence?.photos) ? [...manifest.gallerySequence.photos] : []
+      publishedGallerySequenceVideos.value = Array.isArray(manifest?.gallerySequence?.videos) ? [...manifest.gallerySequence.videos] : []
+      publishedMetadata.value = cloneValue(manifest?.metadata && typeof manifest.metadata === 'object' ? manifest.metadata : {})
+      publishedSections.value = cloneValue(manifest?.sections && typeof manifest.sections === 'object' ? manifest.sections : {})
+      publishedTheme.value = cloneValue(manifest?.theme ?? null)
+      localStateTimestamp.value = localTimestamp
+      localStateIso.value = localStorage.getItem(SITE_STATE_TIMESTAMP_KEY) || ''
+
+      if (!preferLocalState && manifest && Array.isArray(manifest.gallerySequence?.photos)) {
+        gallerySequencePhotos.value = manifest.gallerySequence.photos.map(name => ({ name }))
+        try { localStorage.setItem(GALLERY_SEQUENCE_KEY_PHOTOS, JSON.stringify(manifest.gallerySequence.photos)) } catch (e) {}
+      }
+
+      if (!preferLocalState && manifest && Array.isArray(manifest.gallerySequence?.videos)) {
+        gallerySequenceVideos.value = manifest.gallerySequence.videos.map(name => ({ name }))
+        try { localStorage.setItem(GALLERY_SEQUENCE_KEY_VIDEOS, JSON.stringify(manifest.gallerySequence.videos)) } catch (e) {}
+      }
+
+      if (!preferLocalState && manifest && manifest.metadata && typeof manifest.metadata === 'object') {
+        metadata.value = manifest.metadata
+        try { localStorage.setItem(METADATA_KEY, JSON.stringify(manifest.metadata)) } catch (e) {}
+      }
+
+      if (!preferLocalState) {
+        markSiteStateUpdated(manifest.timestamp || new Date().toISOString())
+      }
+    }
+
+    try {
+      const savedPhotos = JSON.parse(localStorage.getItem(GALLERY_SEQUENCE_KEY_PHOTOS) || 'null')
+      if (savedPhotos && Array.isArray(savedPhotos)) gallerySequencePhotos.value = savedPhotos.map(name => ({ name }))
+    } catch (e) {}
+
+    try {
+      const savedVideos = JSON.parse(localStorage.getItem(GALLERY_SEQUENCE_KEY_VIDEOS) || 'null')
+      if (savedVideos && Array.isArray(savedVideos)) gallerySequenceVideos.value = savedVideos.map(name => ({ name }))
+    } catch (e) {}
+
+    try {
+      const savedMeta = JSON.parse(localStorage.getItem(METADATA_KEY) || 'null')
+      if (savedMeta && typeof savedMeta === 'object') metadata.value = savedMeta
+    } catch (e) {}
+
+    refreshLocalDerivedState()
+
     // prefer backend file listing which exposes files uploaded via FTP or other methods
     const filesRes = await fetch('/api/files')
     if (filesRes && filesRes.ok) {
       const body = await filesRes.json()
       const list = (body.files || []).map(f => ({ name: f.name, type: f.type || 'photo' }))
-      // merge with saved order if present
-      const saved = JSON.parse(localStorage.getItem(FILE_ORDER_KEY) || 'null')
-      if (saved && Array.isArray(saved) && saved.length) {
-        const merged = saved.map(n => {
-          const found = list.find(x => x.name === n)
-          return { name: n, type: found ? found.type : 'photo' }
-        })
-        list.forEach(it => { if (!merged.find(m => m.name === it.name)) merged.push(it) })
-        fileOrder.value = merged
-      } else {
-        fileOrder.value = list
-      }
+      fileOrder.value = list
       return
     }
 
@@ -343,52 +536,16 @@ async function loadManifest() {
         list.push({ name: p, type: 'video' })
       }
     })
-    const saved = JSON.parse(localStorage.getItem(FILE_ORDER_KEY) || 'null')
-    if (saved && Array.isArray(saved) && saved.length) {
-      const merged = saved.map(n => {
-        const found = list.find(x => x.name === n)
-        return { name: n, type: found ? found.type : 'photo' }
-      })
-      list.forEach(it => { if (!merged.find(m=>m.name===it.name)) merged.push(it) })
-      fileOrder.value = merged
-    } else {
-      fileOrder.value = list
-    }
+    fileOrder.value = list
   } catch (e) {
     console.warn('Could not load manifest/files', e)
   }
 }
 
-function saveFileOrder() {
-  try {
-    // Zapisz tylko do localStorage, nie wysyłaj fileOrder na serwer
-    const arr = fileOrder.value.map(f => f.name)
-    localStorage.setItem(FILE_ORDER_KEY, JSON.stringify(arr))
-    alert('Kolejność plików zapisana lokalnie')
-  } catch (e) { console.warn(e) }
-}
-
 
 onMounted(() => {
   loadManifest()
-  // load saved gallery sequences for photos and videos
-  try {
-    const savedPhotos = JSON.parse(localStorage.getItem(GALLERY_SEQUENCE_KEY_PHOTOS) || 'null')
-    if (savedPhotos && Array.isArray(savedPhotos)) {
-      gallerySequencePhotos.value = savedPhotos.map(n => ({ name: n }))
-    }
-  } catch (e) {}
-  try {
-    const savedVideos = JSON.parse(localStorage.getItem(GALLERY_SEQUENCE_KEY_VIDEOS) || 'null')
-    if (savedVideos && Array.isArray(savedVideos)) {
-      gallerySequenceVideos.value = savedVideos.map(n => ({ name: n }))
-    }
-  } catch (e) {}
-  // load metadata
-  try {
-    const savedMeta = JSON.parse(localStorage.getItem(METADATA_KEY) || 'null')
-    if (savedMeta && typeof savedMeta === 'object') metadata.value = savedMeta
-  } catch (e) {}
+  refreshLocalDerivedState()
   // load show videos setting (default true)
   try {
     const sv = localStorage.getItem(SHOW_VIDEOS_KEY)
@@ -403,43 +560,52 @@ onMounted(() => {
     const last = localStorage.getItem(LAST_PUBLISHED_KEY)
     if (last) lastPublishedAt.value = last
   } catch (e) {}
+
+  window.addEventListener('storage', handleExternalStateSync)
+  window.addEventListener('gallery-updated', handleExternalStateSync)
+  window.addEventListener('sections-updated', handleExternalStateSync)
+  window.addEventListener('theme-updated', handleExternalStateSync)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('storage', handleExternalStateSync)
+  window.removeEventListener('gallery-updated', handleExternalStateSync)
+  window.removeEventListener('sections-updated', handleExternalStateSync)
+  window.removeEventListener('theme-updated', handleExternalStateSync)
 })
 
 // publish UI state
-const publishEndpoint = ref('http://localhost:3000/api/manifest')
+const publishEndpoint = ref(PUBLISH_URL)
 const publishToken = ref(localStorage.getItem(PUBLISH_TOKEN_KEY) || '')
 const lastPublishedAt = ref(localStorage.getItem(LAST_PUBLISHED_KEY) || '')
 
 function publishGallerySequence() {
-  // Zapisz sekwencję galerii i opublikuj manifest
-  saveGallerySequence();
-  publishChanges();
+  saveGallerySequence(true)
 }
 const metadataCount = computed(() => Object.keys(metadata.value || {}).length)
 const sectionsCount = computed(() => {
-  try { const s = JSON.parse(localStorage.getItem('site-sections')||'{}'); return Object.keys(s||{}).length } catch(e){return 0}
+  return Object.keys(localSections.value || {}).length
 })
-const themePresent = computed(() => !!localStorage.getItem('site-theme'))
+const themePresent = computed(() => !!localTheme.value)
 
 function savePublishSettings() {
   try {
     localStorage.setItem(PUBLISH_ENDPOINT_KEY, publishEndpoint.value || '')
     localStorage.setItem(PUBLISH_TOKEN_KEY, publishToken.value || '')
-    alert('Ustawienia publikacji zapisane lokalnie')
+    notify('Ustawienia publikacji zapisane lokalnie.', 'success')
   } catch (e) { console.warn(e) }
 }
 
 async function publishChanges() {
-  const ep = 'http://localhost:3000/api/manifest'
-  if (!ep) return alert('Podaj endpoint publikacji')
-  // build payload
-  let themeObj = null;
-  try { themeObj = JSON.parse(localStorage.getItem('site-theme') || '{}') } catch(e){ themeObj = {} }
-  // Ensure themeObj is a valid object with at least one color and one typography entry
-  if (!themeObj || typeof themeObj !== 'object' || Array.isArray(themeObj) || Object.keys(themeObj).length === 0 || !themeObj.colors || !themeObj.typography || Object.keys(themeObj.colors).length === 0 || Object.keys(themeObj.typography).length === 0) {
-    alert('Brak poprawnego motywu do publikacji. Najpierw zapisz motyw w edytorze!')
+  const ep = publishEndpoint.value || PUBLISH_URL
+  if (!ep) {
+    notify('Podaj endpoint publikacji.', 'error')
     return
   }
+  // build payload
+  let themeObj = null;
+  try { themeObj = JSON.parse(localStorage.getItem('site-theme') || 'null') } catch(e){ themeObj = null }
+  const publishedAt = new Date().toISOString()
   const payload = {
     files: Array.isArray(fileOrder.value) ? fileOrder.value.map(f => f.name) : [],
     gallerySequence: {
@@ -449,25 +615,40 @@ async function publishChanges() {
     metadata: (metadata.value && typeof metadata.value === 'object') ? metadata.value : {},
     sections: (() => { try { const s = JSON.parse(localStorage.getItem('site-sections')||'{}'); return (s && typeof s === 'object') ? s : {}; } catch(e){return {}} })(),
     theme: themeObj,
-    timestamp: new Date().toISOString()
+    timestamp: publishedAt
   }
   console.log('publishChanges payload', JSON.stringify(payload, null, 2))
 
   try {
+    isPublishing.value = true
     const headers = { 'Content-Type': 'application/json' }
     if (publishToken.value) headers['x-admin-token'] = publishToken.value
     const res = await fetch(ep, { method: 'POST', headers, body: JSON.stringify(payload) })
     if (!res.ok) {
       const txt = await res.text().catch(()=>res.statusText)
-      return alert('Publikacja nie powiodła się: ' + res.status + ' ' + txt)
+      notify(`Publikacja nie powiodła się: ${res.status} ${txt}`, 'error')
+      return
     }
     const now = new Date().toLocaleString()
     lastPublishedAt.value = now
     try { localStorage.setItem(LAST_PUBLISHED_KEY, now) } catch(e){}
-    alert('Publikacja zakończona powodzeniem')
+    markSiteStateUpdated(publishedAt)
+    manifestStateTimestamp.value = parseTimestamp(publishedAt)
+    manifestStateIso.value = publishedAt
+    publishedGallerySequencePhotos.value = gallerySequencePhotos.value.map(item => item.name || item)
+    publishedGallerySequenceVideos.value = gallerySequenceVideos.value.map(item => item.name || item)
+    publishedMetadata.value = cloneValue(metadata.value)
+    publishedSections.value = cloneValue(readStoredObject(SECTIONS_KEY, {}))
+    publishedTheme.value = cloneValue(readStoredObject(THEME_KEY, null))
+    notify('Publikacja zakończona powodzeniem.', 'success')
+    try { window.dispatchEvent(new CustomEvent('gallery-updated')) } catch (e) {}
+    try { window.dispatchEvent(new CustomEvent('sections-updated')) } catch (e) {}
+    try { window.dispatchEvent(new CustomEvent('theme-updated')) } catch (e) {}
   } catch (e) {
     console.error(e)
-    alert('Błąd podczas publikacji: ' + (e && e.message ? e.message : e))
+    notify('Błąd podczas publikacji: ' + (e && e.message ? e.message : e), 'error')
+  } finally {
+    isPublishing.value = false
   }
 }
 
@@ -485,6 +666,7 @@ const showVideos = ref(true)
 function toggleShowVideos() {
   try {
     localStorage.setItem(SHOW_VIDEOS_KEY, showVideos.value ? '1' : '0')
+    markSiteStateUpdated()
     // notify gallery to refresh
     try { window.dispatchEvent(new CustomEvent('gallery-updated')) } catch (e) {}
   } catch (e) { console.warn(e) }
@@ -494,16 +676,74 @@ function removeFromSequence(idx) {
   gallerySequence.value.splice(idx, 1)
 }
 
-function saveGallerySequence() {
+function saveGallerySequence(shouldPublish = false) {
   try {
     const arr = gallerySequence.value.map(f => f.name)
     const key = (editingMode.value === 'photos') ? GALLERY_SEQUENCE_KEY_PHOTOS : GALLERY_SEQUENCE_KEY_VIDEOS
     localStorage.setItem(key, JSON.stringify(arr))
-    // notify other windows/components
+    markSiteStateUpdated()
     try { window.dispatchEvent(new CustomEvent('gallery-updated')) } catch (e) {}
-    // automatycznie publikuj manifest po zapisaniu sekwencji
-    setTimeout(() => publishManifest(), 100)
+    notify('Sekwencja galerii została zapisana.', 'success')
+    if (shouldPublish) publishChanges()
   } catch (e) { console.warn(e) }
+}
+
+function handleExternalStateSync() {
+  refreshLocalDerivedState()
+}
+
+function applyThemeSnapshot(theme) {
+  const root = document.documentElement
+  const snapshot = theme && typeof theme === 'object' ? theme : null
+  const colors = snapshot?.colors && typeof snapshot.colors === 'object' ? snapshot.colors : {}
+  const typography = snapshot?.typography && typeof snapshot.typography === 'object' ? snapshot.typography : {}
+
+  Object.keys(colors).forEach((key) => {
+    root.style.setProperty(key, colors[key])
+  })
+
+  Object.keys(typography).forEach((sectionKey) => {
+    const cfg = typography[sectionKey]
+    if (!cfg) return
+    if (cfg.font) root.style.setProperty(`--font-${sectionKey}`, cfg.font)
+    if (cfg.size != null) root.style.setProperty(`--font-${sectionKey}-size`, `${cfg.size}px`)
+    if (cfg.weight != null) root.style.setProperty(`--font-${sectionKey}-weight`, String(cfg.weight))
+    if (cfg.color) root.style.setProperty(`--color-${sectionKey}-text`, cfg.color)
+  })
+}
+
+function restorePublishedState() {
+  if (!canRestorePublishedState.value) return
+  if (!confirm('Przywrócić lokalny panel do ostatnio opublikowanego stanu?')) return
+
+  gallerySequencePhotos.value = publishedGallerySequencePhotos.value.map(name => ({ name }))
+  gallerySequenceVideos.value = publishedGallerySequenceVideos.value.map(name => ({ name }))
+  metadata.value = cloneValue(publishedMetadata.value || {})
+  localSections.value = cloneValue(publishedSections.value || {})
+  localTheme.value = cloneValue(publishedTheme.value ?? null)
+  selectedMetaName.value = null
+
+  try { localStorage.setItem(GALLERY_SEQUENCE_KEY_PHOTOS, JSON.stringify(publishedGallerySequencePhotos.value)) } catch (e) {}
+  try { localStorage.setItem(GALLERY_SEQUENCE_KEY_VIDEOS, JSON.stringify(publishedGallerySequenceVideos.value)) } catch (e) {}
+  try { localStorage.setItem(METADATA_KEY, JSON.stringify(metadata.value)) } catch (e) {}
+  try { localStorage.setItem(SECTIONS_KEY, JSON.stringify(localSections.value || {})) } catch (e) {}
+
+  if (localTheme.value == null) {
+    try { localStorage.removeItem(THEME_KEY) } catch (e) {}
+  } else {
+    try { localStorage.setItem(THEME_KEY, JSON.stringify(localTheme.value)) } catch (e) {}
+    applyThemeSnapshot(localTheme.value)
+  }
+
+  const restoredAt = manifestStateIso.value || new Date().toISOString()
+  markSiteStateUpdated(restoredAt)
+  refreshLocalDerivedState()
+
+  try { window.dispatchEvent(new CustomEvent('gallery-updated')) } catch (e) {}
+  try { window.dispatchEvent(new CustomEvent('sections-updated')) } catch (e) {}
+  try { window.dispatchEvent(new CustomEvent('theme-updated')) } catch (e) {}
+
+  notify('Przywrócono lokalny stan do ostatniej publikacji.', 'success')
 }
 
 function clearGallerySequence() {
@@ -512,44 +752,6 @@ function clearGallerySequence() {
   const key = (editingMode.value === 'photos') ? GALLERY_SEQUENCE_KEY_PHOTOS : GALLERY_SEQUENCE_KEY_VIDEOS
   localStorage.removeItem(key)
 }
-
-
-// Publish a manifest (files, sequences and metadata) to a central endpoint
-async function publishManifest() {
-  try {
-    let themeObj = null;
-    try { themeObj = JSON.parse(localStorage.getItem('site-theme') || 'null') } catch(e){ themeObj = null }
-    const manifest = {
-      files: fileOrder.value.map(f => f.name),
-      gallerySequence: {
-        photos: gallerySequencePhotos.value.map(f => f.name),
-        videos: gallerySequenceVideos.value.map(f => f.name)
-      },
-      metadata: metadata.value || {},
-      sections: (() => { try { return JSON.parse(localStorage.getItem('site-sections')||'{}') } catch(e){return {}} })(),
-      theme: themeObj,
-      timestamp: new Date().toISOString()
-    }
-    console.log('publishManifest payload', JSON.stringify(manifest, null, 2))
-
-    const headers = { 'Content-Type': 'application/json' }
-    if (ADMIN_TOKEN) headers['X-ADMIN-TOKEN'] = ADMIN_TOKEN
-
-    const res = await fetch('http://localhost:3000/api/manifest', { method: 'POST', headers, body: JSON.stringify(manifest) })
-    if (!res.ok) {
-      const txt = await res.text().catch(()=>res.statusText)
-      throw new Error(`Publish failed: ${res.status} ${txt}`)
-    }
-    alert('Manifest został opublikowany pomyślnie')
-    // notify gallery to refresh
-    try { window.dispatchEvent(new CustomEvent('gallery-updated')) } catch (e) {}
-  } catch (e) {
-    console.error('publishManifest error', e)
-    alert('Błąd publikacji manifestu: ' + (e && e.message ? e.message : String(e)))
-  }
-}
-
-
 function previewSrcFor(name) {
   // name is often the path from manifest (/img/...), if so return it directly
   if (!name) return ''
@@ -624,9 +826,10 @@ function saveMetadata() {
       })
     } catch (e) {}
     localStorage.setItem(METADATA_KEY, JSON.stringify(metadata.value))
+    markSiteStateUpdated()
     // notify gallery to refresh
     try { window.dispatchEvent(new CustomEvent('gallery-updated')) } catch (e) {}
-    alert('Metadata zapisana')
+    notify('Metadane zapisane lokalnie.', 'success')
   } catch (e) { console.warn(e) }
 }
 

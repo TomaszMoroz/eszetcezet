@@ -29,6 +29,9 @@
   --font-nav-size: 15px;
   --font-nav-weight: 600;
   --color-nav-text: var(--color-text);
+  --focus-ring-color: color-mix(in srgb, var(--color-accent) 70%, white 30%);
+  --surface-border: rgba(255, 255, 255, 0.08);
+  --surface-soft: rgba(255, 255, 255, 0.04);
 }
 
 /* Font faces from public/fonts/bison */
@@ -65,6 +68,13 @@
 html, body {
   height: 100%;
 }
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
 body {
   background: var(--color-bg);
   color: var(--color-text);
@@ -73,6 +83,11 @@ body {
   font-weight: var(--font-base-weight, 400);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-accent) 40%, transparent 60%);
+  color: var(--color-text);
 }
 
 /* Typography mapping for headings, captions and nav using variables set by ThemeEditor */
@@ -130,3 +145,13 @@ small, .caption {
 
 /* Smooth scroll for anchor links */
 html { scroll-behavior: smooth; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

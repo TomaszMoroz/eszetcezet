@@ -86,7 +86,7 @@
 
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { colorPresets, fontPresets } from './ThemePresets.js'
 
 // Section definitions (example sections, adjust as needed)
@@ -116,6 +116,7 @@ const sectionsByKey = computed(() => {
 })
 
 const VAR_KEY = 'site-theme'
+const SITE_STATE_TIMESTAMP_KEY = 'site-state-timestamp'
 
 const defaults = [
   { var: '--color-bg', label: 'Tło', value: '#ffffff' },
@@ -126,6 +127,44 @@ const defaults = [
   { var: '--color-section-light', label: 'Sekcja (jasna)', value: '#eeeeee' },
   { var: '--color-text-dark', label: 'Tekst (ciemny)', value: '#444444' },
 ]
+
+function cloneValue(value) {
+  if (value == null) return value
+  return JSON.parse(JSON.stringify(value))
+}
+
+function markThemeUpdated(value = new Date().toISOString()) {
+  try { localStorage.setItem(SITE_STATE_TIMESTAMP_KEY, value) } catch (e) {}
+  try { window.dispatchEvent(new CustomEvent('theme-updated')) } catch (e) {}
+}
+
+function loadSavedTheme() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(VAR_KEY) || 'null')
+    if (!saved || typeof saved !== 'object') {
+      items.value = cloneValue(defaults)
+      return
+    }
+
+    const colors = saved.colors && typeof saved.colors === 'object' ? saved.colors : {}
+    items.value = defaults.map((item) => ({
+      ...item,
+      value: colors[item.var] || item.value,
+    }))
+
+    if (saved.typography && typeof saved.typography === 'object') {
+      typography.value = {
+        ...typography.value,
+        ...cloneValue(saved.typography),
+      }
+    }
+
+    applyTheme(colors)
+    Object.keys(typography.value).forEach(key => applyTypography(key))
+  } catch (e) {
+    items.value = cloneValue(defaults)
+  }
+}
 // Update CSS variable when color changes
 function updateVar(variable, value) {
   // Ensure value is valid hex color
@@ -201,6 +240,7 @@ function save() {
     return
   }
   localStorage.setItem(VAR_KEY, JSON.stringify(obj))
+  markThemeUpdated()
   // re-apply to be safe
   applyTheme(colorsObj)
   Object.keys(typogObj).forEach(k => applyTypography(k))
@@ -234,7 +274,13 @@ function save() {
 
 function reset() {
   localStorage.removeItem(VAR_KEY)
-  // reload page to reset CSS to defaults from files
+  items.value = cloneValue(defaults)
+  typography.value = {
+    header: { font: '', size: 24, weight: 700, color: '#111111' },
+    body: { font: '', size: 16, weight: 400, color: '#222222' },
+    footer: { font: '', size: 14, weight: 400, color: '#333333' }
+  }
+  markThemeUpdated()
   location.reload()
 }
 
@@ -254,6 +300,15 @@ const googleFontQuery = ref('')
 const customFontName = ref('')
 const customFontUrl = ref('')
 const googleFontsAdded = ref([])
+
+onMounted(() => {
+  loadSavedTheme()
+  window.addEventListener('theme-updated', loadSavedTheme)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('theme-updated', loadSavedTheme)
+})
 
 function loadGoogleFont() {
   if (!googleFontQuery.value) return alert('Wprowadź zapytanie Google Fonts (np. Roboto:wght@400;700)')

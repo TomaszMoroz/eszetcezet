@@ -8,6 +8,16 @@ const IMG_DIR = path.join(process.cwd(), 'public', 'img')
 const VIDEO_DIR = path.join(process.cwd(), 'public', 'videos')
 const OUT_FILE = path.join(process.cwd(), 'public', 'img', 'manifest.json')
 
+async function readExistingManifest() {
+  try {
+    const raw = await fs.readFile(OUT_FILE, 'utf8')
+    const parsed = JSON.parse(raw)
+    return parsed && typeof parsed === 'object' ? parsed : {}
+  } catch (err) {
+    return {}
+  }
+}
+
 async function walk(dir, prefix = '') {
   const entries = await fs.readdir(dir, { withFileTypes: true })
   const files = []
@@ -53,7 +63,19 @@ async function main() {
       // no video dir, that's fine
     }
 
-    const payload = { files }
+    const previousManifest = await readExistingManifest()
+    const payload = {
+      ...previousManifest,
+      files,
+      fileOrder: Array.isArray(previousManifest.fileOrder) && previousManifest.fileOrder.length
+        ? previousManifest.fileOrder
+        : files,
+      gallerySequence: previousManifest.gallerySequence || { photos: [], videos: [] },
+      metadata: previousManifest.metadata || {},
+      sections: previousManifest.sections || {},
+      theme: Object.prototype.hasOwnProperty.call(previousManifest, 'theme') ? previousManifest.theme : null,
+      timestamp: previousManifest.timestamp || new Date().toISOString()
+    }
     await fs.writeFile(OUT_FILE, JSON.stringify(payload, null, 2), 'utf8')
     console.log('Wrote manifest with', files.length, 'entries to', OUT_FILE)
   } catch (err) {
